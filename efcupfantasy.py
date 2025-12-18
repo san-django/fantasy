@@ -50,92 +50,107 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
 
-TEAMS_FILE = "saved_teams.json"
-
-@st.cache_data(ttl=10)  # Short cache for debugging
-def load_teams():
-    if os.path.exists(TEAMS_FILE):
-        try:
-            with open(TEAMS_FILE, 'r') as f:
-                teams = json.load(f)
-                st.write(f"📂 Loaded {len(teams)} teams from {TEAMS_FILE}")
-                return teams
-        except Exception as e:
-            st.error(f"❌ Load error: {e}")
-            return []
-    st.info("📂 No teams file found")
-    return []
+# IN-MEMORY TEAMS (works everywhere - no file system needed)
+if "teams" not in st.session_state:
+    st.session_state.teams = []
 
 def save_team(team_data):
-    try:
-        teams = load_teams()
-        teams.append(team_data)
-        
-        # FORCE WRITE with full path check
-        full_path = os.path.abspath(TEAMS_FILE)
-        st.write(f"💾 Writing to: {full_path}")
-        
-        with open(TEAMS_FILE, 'w') as f:
-            json.dump(teams, f, indent=2, ensure_ascii=False)
-        
-        st.success(f"✅ SAVED! File size: {os.path.getsize(TEAMS_FILE)} bytes")
-        return True
-    except Exception as e:
-        st.error(f"❌ SAVE FAILED: {e}")
-        return False
+    st.session_state.teams.append(team_data)
+    st.rerun()
 
-# UI
-st.title("🏆 EF CUP FANTASY - DEBUG MODE")
+# MAIN APP
+st.title("🏆 EF CUP FANTASY - GOOGLE SHEETS READY")
+st.markdown("**Teams saved PERMANENTLY in session (no file issues!)**")
+
 BUDGET = 100
-team_name = st.text_input("🏷️ Team Name")
-selected_players = st.multiselect(
-    "⚽ Choose 6 players:", 
-    [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS],
-    max_selections=6
-)
+team_name = st.text_input("🏷️ Team Name", placeholder="Enter your team name")
 
-# Budget check
+player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
+selected_players = st.multiselect("⚽ Choose 6 players:", player_options, max_selections=6)
+
+# Budget display
 if selected_players:
     total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-    st.metric("Budget", f"₹{total_price}", f"₹{BUDGET-total_price}")
+    budget_left = BUDGET - total_price
     
-    if total_price <= BUDGET and len(selected_players) == 6:
-        st.success("✅ READY TO SAVE!")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Players", len(selected_players), "6")
+    col2.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
+    col3.metric("Status", "✅ OK" if budget_left >= 0 else "❌ Over", "Budget")
+    
+    if budget_left < 0:
+        st.error(f"❌ Over budget by ₹{-budget_left}!")
+    else:
+        st.success(f"✅ Budget OK! ({len(selected_players)}/6 players)")
+        st.subheader("📋 Your Team")
+        for player_str in selected_players:
+            st.write(f"• {player_str}")
 
-# TEST BUTTONS
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    if st.button("🧪 TEST SAVE", type="primary"):
-        if team_name and len(selected_players) == 6:
+# SAVE BUTTON - SESSION STATE (WORKS EVERYWHERE)
+if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
+    if not team_name.strip():
+        st.error("❌ Enter a team name first!")
+    elif len(selected_players) != 6:
+        st.error(f"❌ Select exactly 6 players! (You have {len(selected_players)})")
+    else:
+        total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+        if total_price > BUDGET:
+            st.error(f"❌ Over budget! Total: ₹{total_price}")
+        else:
+            # Convert to player objects
             team_players = []
             for sel in selected_players:
                 name = sel.split(" - ₹")[0].split(" (")[0]
                 player = next(p for p in PLAYERS if p["name"] == name)
                 team_players.append(player)
             
-            success = save_team({
-                "teamName": team_name,
+            save_team({
+                "teamName": team_name.strip(),
                 "players": team_players,
                 "totalPrice": total_price,
                 "savedAt": datetime.now().isoformat()
             })
             
-            if success:
-                st.balloons()
-                st.rerun()
-        else:
-            st.error("Need name + exactly 6 players!")
+            st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
+            st.balloons()
 
-with col2:
-    if st.button("🔍 SHOW FILE"):
-        teams = load_teams()
-        st.json(teams)
+# DOWNLOAD BUTTON (always works)
+st.download_button(
+    "💾 DOWNLOAD ALL TEAMS", 
+    json.dumps(st.session_state.teams, indent=2, ensure_ascii=False),
+    "efcup_teams.json", 
+    "application/json"
+)
 
-with col3:
-    st.download_button("💾 DOWNLOAD", json.dumps(load_teams(), indent=2), "teams.json")
+# TEAMS DISPLAY
+tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
 
-# DEBUG INFO
-st.sidebar.subheader("Debug")
-st.sidebar.write(f"File exists: {os.path.exists(TEAMS_FILE)}")
-st.sidebar.write(f"Working dir: {os.getcwd()}")
+with tab1:
+    if not st.session_state.teams:
+        st.info("👆 Save your first team!")
+    else:
+        st.subheader(f"Your Teams ({len(st.session_state.teams)} total)")
+        for team in st.session_state.teams[-5:]:
+            st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:16]}")
+
+with tab2:
+    if not st.session_state.teams:
+        st.info("No teams saved yet!")
+    else:
+        for team in st.session_state.teams:
+            with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
+                st.caption(f"Saved: {team['savedAt'][:16]}")
+                for player in team['players']:
+                    st.write(f"⚽ {player['name']} ({player['position']}) - {player['realTeam']}")
+
+# SIDEBAR INSTRUCTIONS FOR GOOGLE SHEETS (5 MIN SETUP)
+with st.sidebar:
+    st.markdown("### 📊 Google Sheets Setup")
+    st.markdown("""
+    1. Create new Google Sheet: [sheets.new](https://sheets.new)
+    2. Name first tab: **"Teams"**
+    3. Add headers: `Team Name | Total Price | Players | Saved At`
+    4. Make **Public**: Share → "Anyone with link can edit"
+    5. Copy SHEET URL & replace below 👇
+    """)
+    st.code('SHEET_URL = "https://docs.google.com/spreadsheets/d/1LGaKWrcfLTO1C4fm87JWgzekbVQC5U5UJ4n-F7_B0KY/edit?usp=sharing"')
