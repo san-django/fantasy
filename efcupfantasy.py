@@ -68,7 +68,6 @@ def save_team(team_data):
     with open(TEAMS_FILE, 'w') as f:
         json.dump(teams, f, indent=2, ensure_ascii=False)
 
-# DOWNLOAD BUTTON - FIXED PERSISTENCE
 def download_teams():
     teams = load_teams()
     return json.dumps(teams, indent=2, ensure_ascii=False)
@@ -80,15 +79,10 @@ st.markdown("**Create your team (₹100 budget) - 6 players max**")
 BUDGET = 100
 team_name = st.text_input("🏷️ Team Name", placeholder="Enter your team name")
 
-# Player options
 player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
-selected_players = st.multiselect(
-    "⚽ Choose 6 players:",
-    player_options,
-    max_selections=6
-)
+selected_players = st.multiselect("⚽ Choose 6 players:", player_options, max_selections=6)
 
-# Budget calculation & display
+# Budget display
 if selected_players:
     total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
     budget_left = BUDGET - total_price
@@ -102,25 +96,24 @@ if selected_players:
         st.error(f"❌ Over budget by ₹{-budget_left}!")
     else:
         st.success(f"✅ Budget OK! ({len(selected_players)}/6 players)")
-        
         st.subheader("📋 Your Team")
         for player_str in selected_players:
             st.write(f"• {player_str}")
 
-# DOWNLOAD + SAVE BUTTONS
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
-        if not team_name:
-            st.error("❌ Enter a team name first!")
-        elif len(selected_players) != 6:
-            st.error("❌ Select exactly 6 players!")
+# FIXED SAVE BUTTON - MOVED OUTSIDE COLUMNS
+st.subheader("Actions")
+if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
+    if not team_name.strip():
+        st.error("❌ Enter a team name first!")
+    elif len(selected_players) != 6:
+        st.error(f"❌ Select exactly 6 players! (You have {len(selected_players)})")
+    else:
+        total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+        if total_price > BUDGET:
+            st.error(f"❌ Over budget! Total: ₹{total_price}")
         else:
-            total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-            if total_price > BUDGET:
-                st.error(f"❌ Over budget! Total: ₹{total_price}")
-            else:
-                # Save team
+            try:
+                # Convert to player objects
                 team_players = []
                 for sel in selected_players:
                     name = sel.split(" - ₹")[0].split(" (")[0]
@@ -128,39 +121,38 @@ with col1:
                     team_players.append(player)
                 
                 save_team({
-                    "teamName": team_name,
+                    "teamName": team_name.strip(),
                     "players": team_players,
                     "totalPrice": total_price,
                     "savedAt": datetime.now().isoformat()
                 })
                 
-                st.balloons()
                 st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
+                st.balloons()
                 st.rerun()
+            except Exception as e:
+                st.error(f"❌ Save failed: {str(e)}")
 
-with col2:
-    st.download_button(
-        "💾 DOWNLOAD TEAMS",
-        download_teams(),
-        "saved_teams.json",
-        "application/json",
-        use_container_width=True
-    )
+# Download button
+st.download_button(
+    "💾 DOWNLOAD TEAMS", 
+    download_teams(), 
+    "saved_teams.json", 
+    "application/json"
+)
 
 # TABS
-tab1, tab2 = st.columns(2)
+tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
 
 with tab1:
-    st.subheader("📱 My Teams")
     teams = load_teams()
     if not teams:
-        st.info("👆 Create your first team above!")
+        st.info("👆 Save your first team!")
     else:
         for team in teams[-5:]:
             st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:10]}")
 
 with tab2:
-    st.subheader("🏆 All Teams")
     teams = load_teams()
     if not teams:
         st.info("No teams saved yet!")
@@ -169,4 +161,4 @@ with tab2:
             with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
                 st.caption(f"Saved: {team['savedAt'][:16]}")
                 for player in team['players']:
-                    st.write(f"⚽ {player['name']} ({player['position']}) - {player['realTeam']}")
+                    st.write(f"⚽ {player['name']} ({player['position']})")
