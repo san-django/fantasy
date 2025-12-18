@@ -1,7 +1,8 @@
 import streamlit as st
-import json
-import os
+import gspread
+from google.oauth2.service_account import Credentials
 from datetime import datetime
+import json
 
 # FIXED: Define PLAYERS FIRST before any Streamlit code
 PLAYERS = [
@@ -50,107 +51,104 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
 
-# IN-MEMORY TEAMS (works everywhere - no file system needed)
-if "teams" not in st.session_state:
-    st.session_state.teams = []
+# Google Sheets config - PUT YOUR CREDENTIALS HERE
+SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+CREDS_JSON = '''
+{
+  "type": "service_account",
+  "project_id": "expanded-dryad-479915-j8",
+  "private_key_id": "d4dd5ee9711ecfb6b43cce3bc14c2f518e70c115",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCxGl9nNhwLGyxa\nyBfxhZTugpsHiOXLse9poFONgamMOhxqN+FUUKkwQnSHszlo4Xp5Vap5G1dEGBVJ\nvnyUJs4PnN14pQ1ylXoxcO+eAz3iw6STfaHwSS9geQEMPmspb3J4n45FyM+Vvp7Q\n5xQRSVJbl5f886KmSKSUe8XgMUQjq9f/6XUgJbioTMBBH3Lbogbl1LP5HHF6ruxW\nWc7PYBr00RAk9ERy0U74H9GpWSayvE/Ip1cGPAvo9SZOx2/qL0jNaJoLBSuJLVS/\n25vBcxy0N/LXO8TEpN7cTV1/GNyy5usxY1DmfwYbp9KUWvFCi5GC2wG6jGEXG+iF\n4EwtNQ2JAgMBAAECggEAJV1Ryvn6xSoUu8ty58Ed2ItED30ltEnEX9XUQurb/UqG\nU6+Z8dq5s0WWBco9fr/xgbdd6cKnsOVe2mneqTgdqeQXwrwZ3/ai6trvpvf6nsTV\njEuJdqNOJE2rN6zUmY+aiFHrZ5Q0HZzzr1HNZU9BmbLcPWEei/QQCwapCwGB5X9h\n9WsFb3T30fp96Krjx3PokIRuQB4c8A/fqB/9NRTubVyjo1YT9f3mbk3DLbQKfZm1\nkkuM3ipEb0mlk1URrJ2HVGrkx3/x3VGoMVU6FV8KyncjSTJwwQkCZXqWslu/emQZ\n0AeTW1AIE5j4OhtMvXMqkJBX69loCzJsz8AMvNb9rQKBgQDouTOFZgpzJr52sXb4\n7YO0MRu+IbRmkx86MtN9Vzn5u13qBEC0ybPv9V8ZR6PpP9PYW7DBcMzrAGu028rA\nuQ6vgN7Hyab33DJ3eL0tbVBgImEY1/nr9f9qNtGT5ey/dLs1sewcl+vPiloY7Ro0\n0L4wUprqyMV1hgKrtX9Dex7gPQKBgQDC0QfgZahThwVrI7YKFb74qkCgoEIESED/\nxrBH1L+SQbX4DwQHyJevqrdADxv2HPtNWu/Qak5QVBVbkKUnxC/Z97ju7EPYCBmt\nblgS5ox2arWgbHQaCRHTAetMkZGBJqVr9r2DCxhdWWIhvgjuPE4thfBPOdlmZG1w\nMHzMFIMLPQKBgQDFWvFnKh6ogm24yExlUz6CW7b0KS8MYa10tE+HlqYSsyM0ZkDd\nT8PpNYNdM9S75CXp7+/YS6lrjOLJ8C5j+0uJ59aFROv0e+bMTDbZxD8KF32SDO3j\nfa0JTM20B6MaxYpRQb5CjU8rpF89jizQJ0lyP0si2foh7PBs3zC6cDnB3QKBgGgC\nS289NuHpSzZJKY42z+9YjgpzpOs+XB1ySXkAF4sRNAKMmb1CFeG+hflYV7hM/sns\ny+38Y3U1fvWUwuf5MQbw37YHQ61ZncPfDnyAw+sQy4krfczMnMyH0MTfTsyiAl0i\nrUkCKm7kIqUbHQ97+M0LHiJeIzgsU9U6vdYC+XeNAoGBAN/lrKoWLqkPg1yBZBCY\nLYeR8MNW352Pxa5J4hpedE42hR3O3RYMVQqzy3B7tjMK2RgaGelSoqwNonFum7xJ\nPa0b+GCR7UtySlsNjNVsksrzsRFp50bNV6SqxEIw0gGGaQ4LPsr34yZDbsONE5GX\nSZ5cHEUAOjCBysSIpuylxxT2\n-----END PRIVATE KEY-----\n",
+  "client_email": "futsal-prediction@expanded-dryad-479915-j8.iam.gserviceaccount.com",
+  "client_id": "102738823036241479968",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/futsal-prediction%40expanded-dryad-479915-j8.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+} # ← REPLACE WITH YOUR SERVICE ACCOUNT JSON
 
-def save_team(team_data):
-    st.session_state.teams.append(team_data)
-    st.rerun()
+SHEET_NAME = "efcupfantasy"
+WORKSHEET_NAME = "Sheet1"
+
+@st.cache_resource
+def connect_sheets():
+    creds = Credentials.from_service_account_info(json.loads(CREDS_JSON), scopes=SCOPE)
+    client = gspread.authorize(creds)
+    sheet = client.create(SHEET_NAME) if SHEET_NAME not in [s.title for s in client.list_spreadsheet_files()] else client.open(SHEET_NAME)
+    worksheet = sheet.worksheet(WORKSHEET_NAME) if WORKSHEET_NAME in [ws.title for ws in sheet.worksheets()] else sheet.add_worksheet(WORKSHEET_NAME, 1000, 5)
+    return worksheet
+
+def save_team_to_sheets(worksheet, team_data):
+    worksheet.append_row([
+        team_data['teamName'],
+        team_data['totalPrice'],
+        "; ".join([p['name'] for p in team_data['players']]),
+        "; ".join([p['position'] for p in team_data['players']]),
+        team_data['savedAt'][:16]
+    ])
+    return True
 
 # MAIN APP
-st.title("🏆 EF CUP FANTASY - GOOGLE SHEETS READY")
-st.markdown("**Teams saved PERMANENTLY in session (no file issues!)**")
+st.title("🏆 EF CUP FANTASY \nCreate Your Team")
+st.markdown("**Teams SAVED TO GOOGLE SHEETS PERMANENTLY!**")
+
+try:
+    worksheet = connect_sheets()
+    st.success("✅ Connected to Google Sheets!")
+except Exception as e:
+    st.error(f"❌ Sheets error: {e}")
+    st.stop()
 
 BUDGET = 100
-team_name = st.text_input("🏷️ Team Name", placeholder="Enter your team name")
-
-player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
-selected_players = st.multiselect("⚽ Choose 6 players:", player_options, max_selections=6)
-
-# Budget display
-if selected_players:
-    total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-    budget_left = BUDGET - total_price
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Players", len(selected_players), "6")
-    col2.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
-    col3.metric("Status", "✅ OK" if budget_left >= 0 else "❌ Over", "Budget")
-    
-    if budget_left < 0:
-        st.error(f"❌ Over budget by ₹{-budget_left}!")
-    else:
-        st.success(f"✅ Budget OK! ({len(selected_players)}/6 players)")
-        st.subheader("📋 Your Team")
-        for player_str in selected_players:
-            st.write(f"• {player_str}")
-
-# SAVE BUTTON - SESSION STATE (WORKS EVERYWHERE)
-if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
-    if not team_name.strip():
-        st.error("❌ Enter a team name first!")
-    elif len(selected_players) != 6:
-        st.error(f"❌ Select exactly 6 players! (You have {len(selected_players)})")
-    else:
-        total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-        if total_price > BUDGET:
-            st.error(f"❌ Over budget! Total: ₹{total_price}")
-        else:
-            # Convert to player objects
-            team_players = []
-            for sel in selected_players:
-                name = sel.split(" - ₹")[0].split(" (")[0]
-                player = next(p for p in PLAYERS if p["name"] == name)
-                team_players.append(player)
-            
-            save_team({
-                "teamName": team_name.strip(),
-                "players": team_players,
-                "totalPrice": total_price,
-                "savedAt": datetime.now().isoformat()
-            })
-            
-            st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
-            st.balloons()
-
-# DOWNLOAD BUTTON (always works)
-st.download_button(
-    "💾 DOWNLOAD ALL TEAMS", 
-    json.dumps(st.session_state.teams, indent=2, ensure_ascii=False),
-    "efcup_teams.json", 
-    "application/json"
+team_name = st.text_input("🏷️ Team Name")
+selected_players = st.multiselect(
+    "⚽ Choose 6 players:", 
+    [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS],
+    max_selections=6
 )
 
-# TEAMS DISPLAY
-tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
+if selected_players:
+    total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+    st.metric("Budget", f"₹{total_price}", f"₹{BUDGET-total_price}")
+    
+    if total_price <= BUDGET and len(selected_players) == 6:
+        st.success("✅ READY - Click SAVE!")
 
-with tab1:
-    if not st.session_state.teams:
-        st.info("👆 Save your first team!")
+# SAVE TO GOOGLE SHEETS
+if st.button("💾 SAVE TO GOOGLE SHEETS", type="primary"):
+    if not team_name:
+        st.error("Enter team name!")
+    elif len(selected_players) != 6:
+        st.error("Select exactly 6 players!")
+    elif total_price > BUDGET:
+        st.error("Over budget!")
     else:
-        st.subheader(f"Your Teams ({len(st.session_state.teams)} total)")
-        for team in st.session_state.teams[-5:]:
-            st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:16]}")
+        team_players = []
+        for sel in selected_players:
+            name = sel.split(" - ₹")[0].split(" (")[0]
+            player = next(p for p in PLAYERS if p["name"] == name)
+            team_players.append(player)
+        
+        success = save_team_to_sheets(worksheet, {
+            "teamName": team_name,
+            "players": team_players,
+            "totalPrice": total_price,
+            "savedAt": datetime.now().isoformat()
+        })
+        
+        if success:
+            st.balloons()
+            st.success("🎉 TEAM SAVED TO GOOGLE SHEETS!")
+            st.rerun()
 
-with tab2:
-    if not st.session_state.teams:
-        st.info("No teams saved yet!")
+# SHOW TEAMS FROM SHEETS
+st.subheader("📊 Teams from Google Sheets")
+try:
+    teams_df = worksheet.get_all_records()
+    if teams_df:
+        st.dataframe(teams_df)
     else:
-        for team in st.session_state.teams:
-            with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
-                st.caption(f"Saved: {team['savedAt'][:16]}")
-                for player in team['players']:
-                    st.write(f"⚽ {player['name']} ({player['position']}) - {player['realTeam']}")
-
-# SIDEBAR INSTRUCTIONS FOR GOOGLE SHEETS (5 MIN SETUP)
-with st.sidebar:
-    st.markdown("### 📊 Google Sheets Setup")
-    st.markdown("""
-    1. Create new Google Sheet: [sheets.new](https://sheets.new)
-    2. Name first tab: **"Teams"**
-    3. Add headers: `Team Name | Total Price | Players | Saved At`
-    4. Make **Public**: Share → "Anyone with link can edit"
-    5. Copy SHEET URL & replace below 👇
-    """)
-    st.code('SHEET_URL = "https://docs.google.com/spreadsheets/d/1LGaKWrcfLTO1C4fm87JWgzekbVQC5U5UJ4n-F7_B0KY/edit?usp=sharing"')
+        st.info("Save your first team!")
+except:
+    st.info("Loading teams...")
