@@ -109,67 +109,89 @@ def save_team(team_data):
 st.title("🏆 EF CUP FANTASY")
 st.markdown("### Create your team (₹100 budget)")
 
+# Budget check
+BUDGET = 100
+
 # Team name
 team_name = st.text_input("Team Name")
 
-# Player selection
+# Player selection (fixed reference to PLAYERS)
 st.subheader("Select Players")
 selected_players = st.multiselect(
-    "Choose 6 players:",
+    "Choose 6 players (₹100 budget):",
     [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS],
     max_selections=6
 )
 
-# Show selected team
+# Calculate total cost and check budget
 if selected_players:
-    st.success(f"✅ **YOUR TEAM ({len(selected_players)}/6)**")
-    for player_str in selected_players:
-        st.write(f"• {player_str}")
-
-# Save button
-if st.button("💾 SAVE TEAM") and len(selected_players) == 6 and team_name:
-    # Convert selection back to player data
-    team_players = []
     total_price = 0
+    team_players_data = []
     for sel in selected_players:
         name_pos_price = sel.split(" - ₹")
         name = name_pos_price[0].split(" (")[0]
         price = int(name_pos_price[1])
-        player = next(p for p in PLAYERS if p["name"] == name)
-        team_players.append(player)
         total_price += price
+        player = next(p for p in PLAYERS if p["name"] == name)
+        team_players_data.append(player)
     
-    save_team({
-        "teamName": team_name,
-        "players": team_players,
-        "totalPrice": total_price,
-        "savedAt": datetime.now().isoformat()
-    })
+    # Show budget status
+    budget_left = BUDGET - total_price
+    st.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
     
-    st.balloons()
-    st.success("✅ Team saved! Check 'All Teams' tab")
-    st.rerun()
+    if budget_left < 0:
+        st.error("❌ Over budget!")
+    else:
+        st.success(f"✅ **YOUR TEAM ({len(selected_players)}/6)** - Budget OK!")
+        for player_str in selected_players:
+            st.write(f"• {player_str}")
 
-# Tabs for viewing teams
+# Save button with validation
+if st.button("💾 SAVE TEAM") and len(selected_players) == 6 and team_name:
+    total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+    
+    if total_price > BUDGET:
+        st.error("Cannot save: Over budget!")
+    else:
+        # Convert selection back to player data
+        team_players = []
+        for sel in selected_players:
+            name_pos_price = sel.split(" - ₹")
+            name = name_pos_price[0].split(" (")[0]
+            player = next(p for p in PLAYERS if p["name"] == name)
+            team_players.append(player)
+        
+        save_team({
+            "teamName": team_name,
+            "players": team_players,
+            "totalPrice": total_price,
+            "savedAt": datetime.now().isoformat()
+        })
+        
+        st.balloons()
+        st.success(f"✅ Team '{team_name}' saved! (₹{total_price}/100)")
+        st.rerun()
+
+# Tabs for viewing teams (FIXED SYNTAX ERROR HERE)
 tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
 
 with tab1:
-    st.subheader("Your Teams")
+    st.subheader("Your Recent Teams")
     teams = load_teams()
     if not teams:
-        st.info("No teams saved yet!")
+        st.info("👆 Create and save teams above!")
     else:
         for team in teams[-5:]:  # Last 5 teams
             st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:10]}")
 
 with tab2:
-    st.subheader("All City Teams")
+    st.subheader("All Saved Teams")
     teams = load_teams()
     if not teams:
-        st.info("No teams yet!")
+        st.info("No teams saved yet!")
     else:
         for team in teams:
             with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
+                st.write(f"**Saved:** {team['savedAt'][:16]}")
                 for player in team['players']:
-                    st.write(f"• {player['name']} ({player['position']})"):
-    app.run(debug=True, host='0.0.0.0', port=5000)
+                    st.write(f"• {player['name']} ({player['position']}) - {player['realTeam']}")
