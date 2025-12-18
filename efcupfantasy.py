@@ -50,14 +50,16 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
 
-# Load/save teams to local file
 TEAMS_FILE = "saved_teams.json"
 
 @st.cache_data
 def load_teams():
     if os.path.exists(TEAMS_FILE):
-        with open(TEAMS_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open(TEAMS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return []
     return []
 
 def save_team(team_data):
@@ -66,79 +68,89 @@ def save_team(team_data):
     with open(TEAMS_FILE, 'w') as f:
         json.dump(teams, f, indent=2)
 
-# NOW Streamlit code - PLAYERS is guaranteed to exist
+# MAIN APP
 st.title("🏆 EF CUP FANTASY")
-st.markdown("### Create your team (₹100 budget)")
+st.markdown("**Create your team (₹100 budget) - 6 players max**")
 
 BUDGET = 100
-team_name = st.text_input("Team Name")
+team_name = st.text_input("🏷️ Team Name", placeholder="Enter your team name")
 
-st.subheader("Select Players")
+# Player options
 player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
 selected_players = st.multiselect(
-    "Choose 6 players (₹100 budget):",
+    "⚽ Choose 6 players:",
     player_options,
     max_selections=6
 )
 
-# Calculate total cost and show team
+# Budget calculation & display
 if selected_players:
     total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
     budget_left = BUDGET - total_price
-    st.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Players", len(selected_players), "6")
+    col2.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
+    col3.metric("Status", "✅ OK" if budget_left >= 0 else "❌ Over", "Budget")
     
     if budget_left < 0:
-        st.error("❌ Over budget!")
+        st.error(f"❌ Over budget by ₹{-budget_left}!")
     else:
-        st.success(f"✅ **YOUR TEAM ({len(selected_players)}/6)** - Budget OK!")
+        st.success(f"✅ Budget OK! ({len(selected_players)}/6 players)")
+        
+        st.subheader("📋 Your Team")
         for player_str in selected_players:
             st.write(f"• {player_str}")
 
-# Save button with validation
-if st.button("💾 SAVE TEAM") and len(selected_players) == 6 and team_name:
-    total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-    
-    if total_price > BUDGET:
-        st.error("Cannot save: Over budget!")
+# FIXED SAVE BUTTON - Always shows status
+if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
+    if not team_name:
+        st.error("❌ Enter a team name first!")
+    elif len(selected_players) != 6:
+        st.error("❌ Select exactly 6 players!")
     else:
-        team_players = []
-        for sel in selected_players:
-            name = sel.split(" - ₹")[0].split(" (")[0]
-            player = next(p for p in PLAYERS if p["name"] == name)
-            team_players.append(player)
-        
-        save_team({
-            "teamName": team_name,
-            "players": team_players,
-            "totalPrice": total_price,
-            "savedAt": datetime.now().isoformat()
-        })
-        
-        st.balloons()
-        st.success(f"✅ Team '{team_name}' saved! (₹{total_price}/100)")
-        st.rerun()
+        total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+        if total_price > BUDGET:
+            st.error(f"❌ Over budget! Total: ₹{total_price}")
+        else:
+            # Save team
+            team_players = []
+            for sel in selected_players:
+                name = sel.split(" - ₹")[0].split(" (")[0]
+                player = next(p for p in PLAYERS if p["name"] == name)
+                team_players.append(player)
+            
+            save_team({
+                "teamName": team_name,
+                "players": team_players,
+                "totalPrice": total_price,
+                "savedAt": datetime.now().isoformat()
+            })
+            
+            st.balloons()
+            st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
+            st.rerun()
 
-# Tabs for viewing teams
+# TABS
 tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
 
 with tab1:
-    st.subheader("Your Recent Teams")
     teams = load_teams()
     if not teams:
-        st.info("👆 Create and save teams above!")
+        st.info("👆 Create your first team above!")
     else:
-        for team in teams[-5:]:
+        st.subheader("Recent Teams")
+        for team in teams[-3:]:
             st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:10]}")
 
 with tab2:
-    st.subheader("All Saved Teams")
     teams = load_teams()
     if not teams:
         st.info("No teams saved yet!")
     else:
+        st.subheader("All Teams")
         for team in teams:
             with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
-                st.write(f"**Saved:** {team['savedAt'][:16]}")
+                st.caption(f"Saved: {team['savedAt'][:16]}")
                 for player in team['players']:
-                    st.write(f"• {player['name']} ({player['position']}) - {player['realTeam']}")
-
+                    st.write(f"⚽ {player['name']} ({player['position']}) - {player['realTeam']}")
