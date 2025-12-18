@@ -50,67 +50,73 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
 st.title("🏆 EF CUP FANTASY ")
+@st.cache_resource
+def get_sheet():
+    # Direct access to your secrets.toml
+    creds = service_account.Credentials.from_service_account_info(
+        st.secrets["connections"]["google_sheets"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    )
+    client = gspread.authorize(creds)
+    
+    # Create/open sheet
+    sheet = client.create("EF Cup Fantasy Teams") if "EF Cup Fantasy Teams" not in [s.title for s in client.list_spreadsheet_files()] else client.open("EF Cup Fantasy Teams")
+    worksheet = sheet.sheet1
+    return worksheet
+
 BUDGET = 100
 team_name = st.text_input("🏷️ Team Name")
+selected_players = st.multiselect(
+    "⚽ Choose 6 players:", 
+    [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS],
+    max_selections=6
+)
 
-player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
-selected_players = st.multiselect("⚽ Choose 6 players:", player_options, max_selections=6)
-
-# Budget check
 if selected_players:
     total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-    budget_left = BUDGET - total_price
-    col1, col2 = st.columns(2)
-    col1.metric("Players", len(selected_players), "6")
-    col2.metric("Budget", f"₹{total_price}", f"₹{budget_left}")
+    st.metric("Budget", f"₹{total_price}/100")
     
-    if budget_left >= 0:
-        st.success(f"✅ READY ({len(selected_players)}/6)")
-        for p in selected_players:
-            st.write(f"• {p}")
+    if total_price <= 100 and len(selected_players) == 6:
+        st.success("✅ READY TO SAVE!")
 
-# SAVE TO SHEETS
-if st.button("💾 SAVE TO GOOGLE SHEETS", type="primary"):
-    if not team_name or len(selected_players) != 6:
-        st.error("Need name + exactly 6 players!")
-    else:
+if st.button("💾 SAVE TEAM", type="primary"):
+    if team_name and len(selected_players) == 6:
         total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-        if total_price > BUDGET:
-            st.error(f"Over budget: ₹{total_price}")
-        else:
+        if total_price <= 100:
             try:
-                conn = load_sheets()
+                worksheet = get_sheet()
                 
-                # Get player data
+                # Get players
                 team_players = []
                 for sel in selected_players:
                     name = sel.split(" - ₹")[0].split(" (")[0]
                     player = next(p for p in PLAYERS if p["name"] == name)
                     team_players.append(player)
                 
-                # Write to FIRST sheet tab
-                data = pd.DataFrame([{
-                    "Team": team_name,
-                    "Price": total_price,
-                    "Players": "; ".join([p['name'] for p in team_players]),
-                    "Saved": datetime.now().strftime("%Y-%m-%d %H:%M")
-                }])
+                # SAVE TO SHEETS
+                worksheet.append_row([
+                    team_name,
+                    total_price,
+                    "; ".join(p['name'] for p in team_players),
+                    "; ".join(p['position'] for p in team_players),
+                    datetime.now().strftime("%Y-%m-%d %H:%M")
+                ])
                 
-                conn.write(data)
-                st.success("🎉 SAVED TO GOOGLE SHEETS!")
+                st.success("✅ SAVED TO GOOGLE SHEETS!")
                 st.balloons()
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ {e}")
-
-# Show saved teams
-try:
-    conn = load_sheets()
-    df = conn.read()
-    if df is not None:
-        st.subheader("📊 Your Teams")
-        st.dataframe(df)
+        else:
+            st.error("Over budget!")
     else:
-        st.info("Save first team!")
+        st.error("Need name + 6 players!")
+
+# Show teams
+try:
+    worksheet = get_sheet()
+    df = pd.DataFrame(worksheet.get_all_records())
+    st.subheader("📊 Saved Teams")
+    st.dataframe(df)
 except:
-    st.info("Click SAVE to create sheet!")
+    st.info("Save first team!")
