@@ -88,7 +88,6 @@ players = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD",
         "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
-
 # Load/save teams to local file
 TEAMS_FILE = "saved_teams.json"
 
