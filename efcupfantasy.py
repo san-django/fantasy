@@ -2,8 +2,13 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import streamlit as st
-from google.oauth2 import service_account
-import gspread
+
+# Load Google Sheets using SECRETS.TOML (your config is perfect)
+@st.cache_resource
+def load_sheets():
+    # Uses your secrets.toml automatically
+    gc = st.connection("google_sheets")
+    return gc
 
 # YOUR FULL PLAYERS LIST (prices fixed for ₹100 budget)
 PLAYERS = [
@@ -44,104 +49,68 @@ PLAYERS = [
     {"id": 35, "name": "ANUPAM BISTA", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
-
-st.title("🏆 EF CUP FANTASY - GOOGLE SHEETS ✅")
-st.markdown("**Teams SAVED PERMANENTLY to Google Sheets!**")
-
-# Load credentials from secrets.toml
-@st.cache_resource
-def load_sheets():
-    creds = service_account.Credentials.from_service_account_info(
-        st.secrets["google_sheets"],
-        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    )
-    client = gspread.authorize(creds)
-    
-    # Open or create sheet
-    try:
-        sheet = client.open("EF Cup Fantasy Teams")
-    except:
-        sheet = client.create("EF Cup Fantasy Teams")
-    
-    # Get or create "Teams" worksheet
-    try:
-        worksheet = sheet.worksheet("Teams")
-    except:
-        worksheet = sheet.add_worksheet(title="Teams", rows=1000, cols=10)
-        # Add headers
-        worksheet.append_row(["Team Name", "Total Price", "Players", "Positions", "Real Teams", "Saved At"])
-    
-    return worksheet
-
+st.title("🏆 EF CUP FANTASY ")
 BUDGET = 100
-team_name = st.text_input("🏷️ Team Name", placeholder="Enter your team name")
+team_name = st.text_input("🏷️ Team Name")
 
 player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
 selected_players = st.multiselect("⚽ Choose 6 players:", player_options, max_selections=6)
 
-# Budget display
+# Budget check
 if selected_players:
     total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
     budget_left = BUDGET - total_price
-    
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     col1.metric("Players", len(selected_players), "6")
-    col2.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
-    col3.metric("Status", "✅ OK" if budget_left >= 0 else "❌ Over", "Budget")
+    col2.metric("Budget", f"₹{total_price}", f"₹{budget_left}")
     
     if budget_left >= 0:
-        st.success(f"✅ Budget OK! ({len(selected_players)}/6 players)")
-        st.subheader("📋 Your Team")
-        for player_str in selected_players:
-            st.write(f"• {player_str}")
+        st.success(f"✅ READY ({len(selected_players)}/6)")
+        for p in selected_players:
+            st.write(f"• {p}")
 
-# SAVE BUTTON - FIXED SYNTAX
-if st.button("💾 SAVE TO GOOGLE SHEETS", type="primary", use_container_width=True):
-    if not team_name.strip():
-        st.error("❌ Enter team name!")
-    elif len(selected_players) != 6:
-        st.error(f"❌ Need exactly 6 players!")
+# SAVE TO SHEETS
+if st.button("💾 SAVE TO GOOGLE SHEETS", type="primary"):
+    if not team_name or len(selected_players) != 6:
+        st.error("Need name + exactly 6 players!")
     else:
         total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
         if total_price > BUDGET:
-            st.error(f"❌ Over budget ₹{total_price}!")
+            st.error(f"Over budget: ₹{total_price}")
         else:
             try:
-                worksheet = load_sheets()
+                conn = load_sheets()
                 
-                # Get player details
+                # Get player data
                 team_players = []
                 for sel in selected_players:
                     name = sel.split(" - ₹")[0].split(" (")[0]
                     player = next(p for p in PLAYERS if p["name"] == name)
                     team_players.append(player)
                 
-                # ✅ CORRECT SYNTAX - append_row()
-                worksheet.append_row([
-                    team_name.strip(),
-                    total_price,
-                    ", ".join([p['name'] for p in team_players]),
-                    ", ".join([p['position'] for p in team_players]),
-                    ", ".join([p['realTeam'] for p in team_players]),
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                ])
+                # Write to FIRST sheet tab
+                data = pd.DataFrame([{
+                    "Team": team_name,
+                    "Price": total_price,
+                    "Players": "; ".join([p['name'] for p in team_players]),
+                    "Saved": datetime.now().strftime("%Y-%m-%d %H:%M")
+                }])
                 
-                st.success(f"🎉 '{team_name}' SAVED TO GOOGLE SHEETS!")
+                conn.write(data)
+                st.success("🎉 SAVED TO GOOGLE SHEETS!")
                 st.balloons()
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ ERROR: {str(e)}")
-                st.info("Check: 1) secrets.toml 2) Sheet shared with service account")
+                st.error(f"❌ {e}")
 
-# SHOW TEAMS FROM SHEETS
-st.subheader("📊 Live Teams from Google Sheets")
+# Show saved teams
 try:
-    worksheet = load_sheets()
-    records = worksheet.get_all_records()
-    if records:
-        df = pd.DataFrame(records)
-        st.dataframe(df, use_container_width=True)
+    conn = load_sheets()
+    df = conn.read()
+    if df is not None:
+        st.subheader("📊 Your Teams")
+        st.dataframe(df)
     else:
-        st.info("👆 Save first team!")
-except Exception as e:
-    st.error(f"❌ Read error: {str(e)}")
+        st.info("Save first team!")
+except:
+    st.info("Click SAVE to create sheet!")
