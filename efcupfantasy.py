@@ -6,47 +6,47 @@ from datetime import datetime
 # FIXED: Define PLAYERS FIRST before any Streamlit code
 PLAYERS = [
     # GOALKEEPERS
-    {"id": 1, "name": "ROJIT SHRESTHA", "price": 10, "position": "GK", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
-    {"id": 2, "name": "SUJAN BK", "price": 8, "position": "GK", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
+    {"id": 1, "name": "ROJIT SHRESTHA", "price": 8, "position": "GK", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
+    {"id": 2, "name": "SUJAN BK", "price": 7, "position": "GK", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
     {"id": 3, "name": "PRASHANNA PAUDEL", "price": 7, "position": "GK", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 4, "name": "TANISHK THAPA", "price": 9, "position": "GK", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
-    {"id": 5, "name": "AAYUSH ROKA", "price": 8, "position": "GK", "isCaptain": False, "realTeam": "BENZE BULLS"},
-    {"id": 6, "name": "SANGAM SHRESTHA", "price": 10, "position": "GK", "isCaptain": False, "realTeam": "GODAR GOATS"},
+    {"id": 4, "name": "TANISHK THAPA", "price": 8, "position": "GK", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
+    {"id": 5, "name": "AAYUSH ROKA", "price": 7, "position": "GK", "isCaptain": False, "realTeam": "BENZE BULLS"},
+    {"id": 6, "name": "SANGAM SHRESTHA", "price": 8, "position": "GK", "isCaptain": False, "realTeam": "GODAR GOATS"},
 
-    # FORWARDS
-    {"id": 7, "name": "SABIN DAHAL", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
+    # FORWARDS - LOWER PRICES FOR ₹100 BUDGET
+    {"id": 7, "name": "SABIN DAHAL", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
     {"id": 8, "name": "SACHIN SEN", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
     {"id": 9, "name": "SAKAR SUBEDI", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
-    {"id": 10, "name": "SANDIL KATUWAL", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "GODAR GOATS"},
-    {"id": 11, "name": "SANJAYA ADHIKARI", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 12, "name": "SANKALPA SHARMA", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
-    {"id": 13, "name": "SHRIJAN BHUSAL", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
+    {"id": 10, "name": "SANDIL KATUWAL", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "GODAR GOATS"},
+    {"id": 11, "name": "SANJAYA ADHIKARI", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 12, "name": "SANKALPA SHARMA", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
+    {"id": 13, "name": "SHRIJAN BHUSAL", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
     {"id": 14, "name": "SHUBHAM SINGH", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "GODAR GOATS"},
     {"id": 15, "name": "SHUSHANT ADHIKARI", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
-    {"id": 16, "name": "SHYAM MAHATO", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "GODAR GOATS"},
+    {"id": 16, "name": "SHYAM MAHATO", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "GODAR GOATS"},
     {"id": 17, "name": "SUDIP BARAL", "price": 8, "position": "FWD", "isCaptain": True, "realTeam": "BENZE BULLS"},
-    {"id": 18, "name": "SUJIT GURUNG", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
+    {"id": 18, "name": "SUJIT GURUNG", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
     {"id": 19, "name": "SUMAN CHHETRI", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
-    {"id": 20, "name": "UNIQUE REGMI", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
-    {"id": 21, "name": "SUMAN SHARMA", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
+    {"id": 20, "name": "UNIQUE REGMI", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
+    {"id": 21, "name": "SUMAN SHARMA", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
     {"id": 22, "name": "UDHAY THAKUR", "price": 8, "position": "FWD", "isCaptain": False, "realTeam": "GODAR GOATS"},
 
-    # DEFENDERS
-    {"id": 23, "name": "SAJAN ROKAYA", "price": 7, "position": "DEF", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
-    {"id": 24, "name": "SAMEER ACHARYA", "price": 9, "position": "DEF", "isCaptain": True, "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 25, "name": "SAMIR GODAR", "price": 8, "position": "DEF", "isCaptain": True, "realTeam": "GODAR GOATS"},
-    {"id": 26, "name": "SANTOSH JOSHI", "price": 10, "position": "DEF", "isCaptain": True, "realTeam": "JOSHI JAGUARS"},
-    {"id": 27, "name": "SUJAL PARAJULI", "price": 7, "position": "DEF", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
-    {"id": 28, "name": "SUJAL SOTI", "price": 9, "position": "DEF", "isCaptain": True, "realTeam": "SOTI SOLDIERS"},
-    {"id": 29, "name": "SUJAN BHAATTA", "price": 8, "position": "DEF", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
-    {"id": 30, "name": "SUSHAN PANDEY", "price": 10, "position": "DEF", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 31, "name": "SWORNIM TIMILSINA", "price": 10, "position": "DEF", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 32, "name": "VIVEK GAUTAM", "price": 7, "position": "DEF", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 33, "name": "ZENITH SARU", "price": 9, "position": "DEF", "isCaptain": True, "realTeam": "ZENITH ZEBRAS"},
+    # DEFENDERS - LOWEST PRICES
+    {"id": 23, "name": "SAJAN ROKAYA", "price": 6, "position": "DEF", "isCaptain": False, "realTeam": "ZENITH ZEBRAS"},
+    {"id": 24, "name": "SAMEER ACHARYA", "price": 7, "position": "DEF", "isCaptain": True, "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 25, "name": "SAMIR GODAR", "price": 6, "position": "DEF", "isCaptain": True, "realTeam": "GODAR GOATS"},
+    {"id": 26, "name": "SANTOSH JOSHI", "price": 7, "position": "DEF", "isCaptain": True, "realTeam": "JOSHI JAGUARS"},
+    {"id": 27, "name": "SUJAL PARAJULI", "price": 6, "position": "DEF", "isCaptain": False, "realTeam": "JOSHI JAGUARS"},
+    {"id": 28, "name": "SUJAL SOTI", "price": 7, "position": "DEF", "isCaptain": True, "realTeam": "SOTI SOLDIERS"},
+    {"id": 29, "name": "SUJAN BHAATTA", "price": 6, "position": "DEF", "isCaptain": False, "realTeam": "SOTI SOLDIERS"},
+    {"id": 30, "name": "SUSHAN PANDEY", "price": 7, "position": "DEF", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 31, "name": "SWORNIM TIMILSINA", "price": 7, "position": "DEF", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 32, "name": "VIVEK GAUTAM", "price": 6, "position": "DEF", "isCaptain": False, "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 33, "name": "ZENITH SARU", "price": 7, "position": "DEF", "isCaptain": True, "realTeam": "ZENITH ZEBRAS"},
 
     # FOREIGN PLAYERS
-    {"id": 34, "name": "ANUJ THAPA", "price": 8, "position": "DEF", "isCaptain": False, "realTeam": "BENZE BULLS"},
-    {"id": 35, "name": "ANUPAM BISTA", "price": 10, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
+    {"id": 34, "name": "ANUJ THAPA", "price": 7, "position": "DEF", "isCaptain": False, "realTeam": "BENZE BULLS"},
+    {"id": 35, "name": "ANUPAM BISTA", "price": 9, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
 
@@ -66,7 +66,12 @@ def save_team(team_data):
     teams = load_teams()
     teams.append(team_data)
     with open(TEAMS_FILE, 'w') as f:
-        json.dump(teams, f, indent=2)
+        json.dump(teams, f, indent=2, ensure_ascii=False)
+
+# DOWNLOAD BUTTON - FIXED PERSISTENCE
+def download_teams():
+    teams = load_teams()
+    return json.dumps(teams, indent=2, ensure_ascii=False)
 
 # MAIN APP
 st.title("🏆 EF CUP FANTASY")
@@ -102,53 +107,64 @@ if selected_players:
         for player_str in selected_players:
             st.write(f"• {player_str}")
 
-# FIXED SAVE BUTTON - Always shows status
-if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
-    if not team_name:
-        st.error("❌ Enter a team name first!")
-    elif len(selected_players) != 6:
-        st.error("❌ Select exactly 6 players!")
-    else:
-        total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-        if total_price > BUDGET:
-            st.error(f"❌ Over budget! Total: ₹{total_price}")
+# DOWNLOAD + SAVE BUTTONS
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
+        if not team_name:
+            st.error("❌ Enter a team name first!")
+        elif len(selected_players) != 6:
+            st.error("❌ Select exactly 6 players!")
         else:
-            # Save team
-            team_players = []
-            for sel in selected_players:
-                name = sel.split(" - ₹")[0].split(" (")[0]
-                player = next(p for p in PLAYERS if p["name"] == name)
-                team_players.append(player)
-            
-            save_team({
-                "teamName": team_name,
-                "players": team_players,
-                "totalPrice": total_price,
-                "savedAt": datetime.now().isoformat()
-            })
-            
-            st.balloons()
-            st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
-            st.rerun()
+            total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+            if total_price > BUDGET:
+                st.error(f"❌ Over budget! Total: ₹{total_price}")
+            else:
+                # Save team
+                team_players = []
+                for sel in selected_players:
+                    name = sel.split(" - ₹")[0].split(" (")[0]
+                    player = next(p for p in PLAYERS if p["name"] == name)
+                    team_players.append(player)
+                
+                save_team({
+                    "teamName": team_name,
+                    "players": team_players,
+                    "totalPrice": total_price,
+                    "savedAt": datetime.now().isoformat()
+                })
+                
+                st.balloons()
+                st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
+                st.rerun()
+
+with col2:
+    st.download_button(
+        "💾 DOWNLOAD TEAMS",
+        download_teams(),
+        "saved_teams.json",
+        "application/json",
+        use_container_width=True
+    )
 
 # TABS
-tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
+tab1, tab2 = st.columns(2)
 
 with tab1:
+    st.subheader("📱 My Teams")
     teams = load_teams()
     if not teams:
         st.info("👆 Create your first team above!")
     else:
-        st.subheader("Recent Teams")
-        for team in teams[-3:]:
+        for team in teams[-5:]:
             st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:10]}")
 
 with tab2:
+    st.subheader("🏆 All Teams")
     teams = load_teams()
     if not teams:
         st.info("No teams saved yet!")
     else:
-        st.subheader("All Teams")
         for team in teams:
             with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
                 st.caption(f"Saved: {team['savedAt'][:16]}")
