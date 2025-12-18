@@ -52,113 +52,90 @@ PLAYERS = [
 
 TEAMS_FILE = "saved_teams.json"
 
-@st.cache_data
+@st.cache_data(ttl=10)  # Short cache for debugging
 def load_teams():
     if os.path.exists(TEAMS_FILE):
         try:
             with open(TEAMS_FILE, 'r') as f:
-                return json.load(f)
-        except:
+                teams = json.load(f)
+                st.write(f"📂 Loaded {len(teams)} teams from {TEAMS_FILE}")
+                return teams
+        except Exception as e:
+            st.error(f"❌ Load error: {e}")
             return []
+    st.info("📂 No teams file found")
     return []
 
 def save_team(team_data):
-    teams = load_teams()
-    teams.append(team_data)
-    with open(TEAMS_FILE, 'w') as f:
-        json.dump(teams, f, indent=2, ensure_ascii=False)
+    try:
+        teams = load_teams()
+        teams.append(team_data)
+        
+        # FORCE WRITE with full path check
+        full_path = os.path.abspath(TEAMS_FILE)
+        st.write(f"💾 Writing to: {full_path}")
+        
+        with open(TEAMS_FILE, 'w') as f:
+            json.dump(teams, f, indent=2, ensure_ascii=False)
+        
+        st.success(f"✅ SAVED! File size: {os.path.getsize(TEAMS_FILE)} bytes")
+        return True
+    except Exception as e:
+        st.error(f"❌ SAVE FAILED: {e}")
+        return False
 
-def download_teams():
-    teams = load_teams()
-    return json.dumps(teams, indent=2, ensure_ascii=False)
-
-# MAIN APP
-st.title("🏆 EF CUP FANTASY")
-st.markdown("**Create your team (₹100 budget) - 6 players max**")
-
+# UI
+st.title("🏆 EF CUP FANTASY - DEBUG MODE")
 BUDGET = 100
-team_name = st.text_input("🏷️ Team Name", placeholder="Enter your team name")
-
-player_options = [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS]
-selected_players = st.multiselect("⚽ Choose 6 players:", player_options, max_selections=6)
-
-# Budget display
-if selected_players:
-    total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-    budget_left = BUDGET - total_price
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Players", len(selected_players), "6")
-    col2.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
-    col3.metric("Status", "✅ OK" if budget_left >= 0 else "❌ Over", "Budget")
-    
-    if budget_left < 0:
-        st.error(f"❌ Over budget by ₹{-budget_left}!")
-    else:
-        st.success(f"✅ Budget OK! ({len(selected_players)}/6 players)")
-        st.subheader("📋 Your Team")
-        for player_str in selected_players:
-            st.write(f"• {player_str}")
-
-# FIXED SAVE BUTTON - MOVED OUTSIDE COLUMNS
-st.subheader("Actions")
-if st.button("💾 SAVE TEAM", type="primary", use_container_width=True):
-    if not team_name.strip():
-        st.error("❌ Enter a team name first!")
-    elif len(selected_players) != 6:
-        st.error(f"❌ Select exactly 6 players! (You have {len(selected_players)})")
-    else:
-        total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
-        if total_price > BUDGET:
-            st.error(f"❌ Over budget! Total: ₹{total_price}")
-        else:
-            try:
-                # Convert to player objects
-                team_players = []
-                for sel in selected_players:
-                    name = sel.split(" - ₹")[0].split(" (")[0]
-                    player = next(p for p in PLAYERS if p["name"] == name)
-                    team_players.append(player)
-                
-                save_team({
-                    "teamName": team_name.strip(),
-                    "players": team_players,
-                    "totalPrice": total_price,
-                    "savedAt": datetime.now().isoformat()
-                })
-                
-                st.success(f"🎉 Team '{team_name}' SAVED! (₹{total_price}/100)")
-                st.balloons()
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Save failed: {str(e)}")
-
-# Download button
-st.download_button(
-    "💾 DOWNLOAD TEAMS", 
-    download_teams(), 
-    "saved_teams.json", 
-    "application/json"
+team_name = st.text_input("🏷️ Team Name")
+selected_players = st.multiselect(
+    "⚽ Choose 6 players:", 
+    [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS],
+    max_selections=6
 )
 
-# TABS
-tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
+# Budget check
+if selected_players:
+    total_price = sum(int(sel.split(" - ₹")[1]) for sel in selected_players)
+    st.metric("Budget", f"₹{total_price}", f"₹{BUDGET-total_price}")
+    
+    if total_price <= BUDGET and len(selected_players) == 6:
+        st.success("✅ READY TO SAVE!")
 
-with tab1:
-    teams = load_teams()
-    if not teams:
-        st.info("👆 Save your first team!")
-    else:
-        for team in teams[-5:]:
-            st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:10]}")
+# TEST BUTTONS
+col1, col2, col3 = st.columns(3)
 
-with tab2:
-    teams = load_teams()
-    if not teams:
-        st.info("No teams saved yet!")
-    else:
-        for team in teams:
-            with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
-                st.caption(f"Saved: {team['savedAt'][:16]}")
-                for player in team['players']:
-                    st.write(f"⚽ {player['name']} ({player['position']})")
+with col1:
+    if st.button("🧪 TEST SAVE", type="primary"):
+        if team_name and len(selected_players) == 6:
+            team_players = []
+            for sel in selected_players:
+                name = sel.split(" - ₹")[0].split(" (")[0]
+                player = next(p for p in PLAYERS if p["name"] == name)
+                team_players.append(player)
+            
+            success = save_team({
+                "teamName": team_name,
+                "players": team_players,
+                "totalPrice": total_price,
+                "savedAt": datetime.now().isoformat()
+            })
+            
+            if success:
+                st.balloons()
+                st.rerun()
+        else:
+            st.error("Need name + exactly 6 players!")
+
+with col2:
+    if st.button("🔍 SHOW FILE"):
+        teams = load_teams()
+        st.json(teams)
+
+with col3:
+    st.download_button("💾 DOWNLOAD", json.dumps(load_teams(), indent=2), "teams.json")
+
+# DEBUG INFO
+st.sidebar.subheader("Debug")
+st.sidebar.write(f"File exists: {os.path.exists(TEAMS_FILE)}")
+st.sidebar.write(f"Working dir: {os.getcwd()}")
