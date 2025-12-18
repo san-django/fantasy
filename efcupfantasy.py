@@ -66,7 +66,7 @@ CREDS_JSON = '''
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/futsal-prediction%40expanded-dryad-479915-j8.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
-} # ← REPLACE WITH YOUR SERVICE ACCOUNT JSON
+} '''# ← REPLACE WITH YOUR SERVICE ACCOUNT JSON
 
 SHEET_NAME = "efcupfantasy"
 WORKSHEET_NAME = "Sheet1"
