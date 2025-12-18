@@ -89,8 +89,7 @@ players = [
         "isCaptain": False, "realTeam": "BENZE BULLS"},
 ]
 
-
-# Load/save teams to YOUR local file
+# Load/save teams to local file
 TEAMS_FILE = "saved_teams.json"
 
 @st.cache_data
@@ -115,7 +114,7 @@ BUDGET = 100
 # Team name
 team_name = st.text_input("Team Name")
 
-# Player selection (fixed reference to PLAYERS)
+# Player selection - FIXED: PLAYERS is now properly defined above
 st.subheader("Select Players")
 selected_players = st.multiselect(
     "Choose 6 players (₹100 budget):",
@@ -123,19 +122,13 @@ selected_players = st.multiselect(
     max_selections=6
 )
 
-# Calculate total cost and check budget
+# Calculate total cost and show team
 if selected_players:
     total_price = 0
-    team_players_data = []
     for sel in selected_players:
-        name_pos_price = sel.split(" - ₹")
-        name = name_pos_price[0].split(" (")[0]
-        price = int(name_pos_price[1])
+        price = int(sel.split(" - ₹")[1])
         total_price += price
-        player = next(p for p in PLAYERS if p["name"] == name)
-        team_players_data.append(player)
     
-    # Show budget status
     budget_left = BUDGET - total_price
     st.metric("Budget Used", f"₹{total_price}", f"₹{budget_left}")
     
@@ -156,8 +149,7 @@ if st.button("💾 SAVE TEAM") and len(selected_players) == 6 and team_name:
         # Convert selection back to player data
         team_players = []
         for sel in selected_players:
-            name_pos_price = sel.split(" - ₹")
-            name = name_pos_price[0].split(" (")[0]
+            name = sel.split(" - ₹")[0].split(" (")[0]
             player = next(p for p in PLAYERS if p["name"] == name)
             team_players.append(player)
         
@@ -172,7 +164,7 @@ if st.button("💾 SAVE TEAM") and len(selected_players) == 6 and team_name:
         st.success(f"✅ Team '{team_name}' saved! (₹{total_price}/100)")
         st.rerun()
 
-# Tabs for viewing teams (FIXED SYNTAX ERROR HERE)
+# Tabs for viewing teams
 tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
 
 with tab1:
