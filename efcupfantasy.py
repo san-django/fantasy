@@ -1,10 +1,8 @@
 
+import streamlit as st
 import json
-from flask_cors import CORS
-from flask import Flask, jsonify, request
-
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+import os
+from datetime import datetime
 
 # Sample player data
 players = [
@@ -92,21 +90,86 @@ players = [
 ]
 
 
-@app.route("/player", methods=["GET"])
-def get_players():
-    return jsonify(players)
+# Load/save teams to YOUR local file
+TEAMS_FILE = "saved_teams.json"
 
+@st.cache_data
+def load_teams():
+    if os.path.exists(TEAMS_FILE):
+        with open(TEAMS_FILE, 'r') as f:
+            return json.load(f)
+    return []
 
-@app.route("/save_team", methods=["POST"])
-def save_team():
-    data = request.get_json()
-    with open('saved_teams.json', 'a') as f:
-        json.dump(data, f)
-        f.write('\n')
-    print(f"💾 SAVED to saved_teams.json")
-    print("Received team:", data)
-    return jsonify({"status": "success"})
+def save_team(team_data):
+    teams = load_teams()
+    teams.append(team_data)
+    with open(TEAMS_FILE, 'w') as f:
+        json.dump(teams, f, indent=2)
 
+st.title("🏆 EF CUP FANTASY")
+st.markdown("### Create your team (₹100 budget)")
 
-if __name__ == '__main__':
+# Team name
+team_name = st.text_input("Team Name")
+
+# Player selection
+st.subheader("Select Players")
+selected_players = st.multiselect(
+    "Choose 6 players:",
+    [f"{p['name']} ({p['position']}) - ₹{p['price']}" for p in PLAYERS],
+    max_selections=6
+)
+
+# Show selected team
+if selected_players:
+    st.success(f"✅ **YOUR TEAM ({len(selected_players)}/6)**")
+    for player_str in selected_players:
+        st.write(f"• {player_str}")
+
+# Save button
+if st.button("💾 SAVE TEAM") and len(selected_players) == 6 and team_name:
+    # Convert selection back to player data
+    team_players = []
+    total_price = 0
+    for sel in selected_players:
+        name_pos_price = sel.split(" - ₹")
+        name = name_pos_price[0].split(" (")[0]
+        price = int(name_pos_price[1])
+        player = next(p for p in PLAYERS if p["name"] == name)
+        team_players.append(player)
+        total_price += price
+    
+    save_team({
+        "teamName": team_name,
+        "players": team_players,
+        "totalPrice": total_price,
+        "savedAt": datetime.now().isoformat()
+    })
+    
+    st.balloons()
+    st.success("✅ Team saved! Check 'All Teams' tab")
+    st.rerun()
+
+# Tabs for viewing teams
+tab1, tab2 = st.tabs(["📱 My Teams", "🏆 All Teams"])
+
+with tab1:
+    st.subheader("Your Teams")
+    teams = load_teams()
+    if not teams:
+        st.info("No teams saved yet!")
+    else:
+        for team in teams[-5:]:  # Last 5 teams
+            st.markdown(f"**{team['teamName']}** - ₹{team['totalPrice']} - {team['savedAt'][:10]}")
+
+with tab2:
+    st.subheader("All City Teams")
+    teams = load_teams()
+    if not teams:
+        st.info("No teams yet!")
+    else:
+        for team in teams:
+            with st.expander(f"{team['teamName']} - ₹{team['totalPrice']}"):
+                for player in team['players']:
+                    st.write(f"• {player['name']} ({player['position']})"):
     app.run(debug=True, host='0.0.0.0', port=5000)
