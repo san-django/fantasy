@@ -1,20 +1,17 @@
 import streamlit as st
-from datetime import datetime
 import pandas as pd
-import gspread
+from datetime import datetime
 from google.oauth2 import service_account
+import gspread
 
-# COMPLETE 36 PLAYERS - FIXED PRICES FOR ₹100 BUDGET
+# YOUR COMPLETE 36 PLAYERS
 PLAYERS = [
-    # GOALKEEPERS
     {"id": 1, "name": "ROJIT SHRESTHA", "price": 8, "position": "GK", "realTeam": "JOSHI JAGUARS"},
     {"id": 2, "name": "SUJAN BK", "price": 7, "position": "GK", "realTeam": "SOTI SOLDIERS"},
     {"id": 3, "name": "PRASHANNA PAUDEL", "price": 7, "position": "GK", "realTeam": "ACHARYA ATTACKERS"},
     {"id": 4, "name": "TANISHK THAPA", "price": 8, "position": "GK", "realTeam": "ZENITH ZEBRAS"},
     {"id": 5, "name": "AAYUSH ROKA", "price": 7, "position": "GK", "realTeam": "BENZE BULLS"},
     {"id": 6, "name": "SANGAM SHRESTHA", "price": 8, "position": "GK", "realTeam": "GODAR GOATS"},
-    
-    # FORWARDS
     {"id": 7, "name": "SABIN DAHAL", "price": 9, "position": "FWD", "realTeam": "BENZE BULLS"},
     {"id": 8, "name": "SACHIN SEN", "price": 8, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
     {"id": 9, "name": "SAKAR SUBEDI", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
@@ -31,8 +28,6 @@ PLAYERS = [
     {"id": 20, "name": "UNIQUE REGMI", "price": 9, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
     {"id": 21, "name": "SUMAN SHARMA", "price": 9, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
     {"id": 22, "name": "UDHAY THAKUR", "price": 8, "position": "FWD", "realTeam": "GODAR GOATS"},
-    
-    # DEFENDERS (CHEAPEST)
     {"id": 23, "name": "SAJAN ROKAYA", "price": 6, "position": "DEF", "realTeam": "ZENITH ZEBRAS"},
     {"id": 24, "name": "SAMEER ACHARYA", "price": 7, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
     {"id": 25, "name": "SAMIR GODAR", "price": 6, "position": "DEF", "realTeam": "GODAR GOATS"},
@@ -44,31 +39,30 @@ PLAYERS = [
     {"id": 31, "name": "SWORNIM TIMILSINA", "price": 7, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
     {"id": 32, "name": "VIVEK GAUTAM", "price": 6, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
     {"id": 33, "name": "ZENITH SARU", "price": 7, "position": "DEF", "realTeam": "ZENITH ZEBRAS"},
-    
-    # FOREIGN PLAYERS
     {"id": 34, "name": "ANUJ THAPA", "price": 7, "position": "DEF", "realTeam": "BENZE BULLS"},
     {"id": 35, "name": "ANUPAM BISTA", "price": 9, "position": "FWD", "realTeam": "BENZE BULLS"},
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
 ]
 
-# YOUR SHEET ID HERE (replace with your actual ID)
-SHEET_ID = "1n89U49NJ5JTQ0_YSA3li1AEgOJ_wpHcCsupRCLuf7iQ"  # ← PASTE YOUR SHEET ID
-
-@st.cache_resource
-def connect_sheets():
-    # Simple public sheet access
-    gc = gspread.service_account()
-    sheet = gc.open_by_key(SHEET_ID)
-    return sheet.sheet1
-
 st.title("🏆 EF CUP FANTASY LEAGUE")
-st.markdown("**Public League - Everyone's teams saved LIVE!**")
+st.markdown("**Everyone's teams saved LIVE to Google Sheets!**")
 
-# MAIN APP (same beautiful interface)
+# ✅ USE YOUR secrets.toml DIRECTLY
+@st.cache_resource
+def get_sheet():
+    creds = service_account.Credentials.from_service_account_info(
+        st.secrets["connections"]["google_sheets"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    )
+    client = gspread.authorize(creds)
+    sheet = client.open("EF Cup Fantasy League")  # Create this sheet manually
+    return sheet.worksheet("Sheet1")
+
 BUDGET = 100
-team_name = st.text_input("🏷️ **Team Name**")
-owner_name = st.text_input("👤 **Your Name**")
+team_name = st.text_input("🏷️ **Team Name**", placeholder="My Super Team")
+owner_name = st.text_input("👤 **Your Name**", placeholder="Your Name")
 
+# Position-based selection (same beautiful UI)
 col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown("### 🧤 **Goalkeepers**")
@@ -87,7 +81,7 @@ with col3:
 
 selected_players = selected_gk + selected_fwd + selected_def
 
-# Budget display
+# Budget calculator
 if selected_players:
     total_price = sum(int(p.split("₹")[1]) for p in selected_players)
     budget_left = BUDGET - total_price
@@ -103,21 +97,21 @@ if selected_players:
         for player in selected_players:
             st.write(f"• {player}")
 
-# 🚀 SAVE TO PUBLIC GOOGLE SHEETS
+# 🚀 SAVE TO GOOGLE SHEETS
 if st.button("💾 **SAVE TO PUBLIC LEAGUE**", type="primary", use_container_width=True):
-    if not team_name or not owner_name:
+    if not team_name.strip() or not owner_name.strip():
         st.error("❌ **Enter Team Name & Your Name!**")
     elif len(selected_players) != 6:
-        st.error(f"❌ **Need exactly 6 players!**")
+        st.error(f"❌ **Need exactly 6 players!** (You have {len(selected_players)})")
     else:
         total_price = sum(int(p.split("₹")[1]) for p in selected_players)
         if total_price > BUDGET:
-            st.error(f"❌ **Over budget!**")
+            st.error(f"❌ **Over budget: ₹{total_price}!**")
         else:
             try:
-                worksheet = connect_sheets()
+                worksheet = get_sheet()
                 
-                # Get full player data
+                # Get full player details
                 team_players = []
                 positions = []
                 real_teams = []
@@ -128,7 +122,7 @@ if st.button("💾 **SAVE TO PUBLIC LEAGUE**", type="primary", use_container_wid
                     positions.append(player['position'])
                     real_teams.append(player['realTeam'])
                 
-                # SAVE TO PUBLIC SHEET
+                # ✅ SAVE TO YOUR SHEET
                 worksheet.append_row([
                     team_name.strip(),
                     total_price,
@@ -139,7 +133,7 @@ if st.button("💾 **SAVE TO PUBLIC LEAGUE**", type="primary", use_container_wid
                     owner_name.strip()
                 ])
                 
-                st.success(f"🎉 **'{team_name}' ADDED TO PUBLIC LEAGUE!**")
+                st.success(f"🎉 **'{team_name}' ADDED TO LEAGUE!**")
                 st.balloons()
                 st.rerun()
             except Exception as e:
@@ -147,17 +141,16 @@ if st.button("💾 **SAVE TO PUBLIC LEAGUE**", type="primary", use_container_wid
 
 # LIVE LEAGUE TABLE
 st.markdown("---")
-st.subheader("🏆 **LIVE LEAGUE - All City Teams**")
+st.subheader("🏆 **LIVE LEAGUE TABLE**")
 
 try:
-    worksheet = connect_sheets()
-    df = pd.DataFrame(worksheet.get_all_records())
-    if not df.empty:
-        st.dataframe(df.tail(50), use_container_width=True)  # Last 50 teams
+    worksheet = get_sheet()
+    records = worksheet.get_all_records()
+    if records:
+        df = pd.DataFrame(records)
+        st.dataframe(df.tail(20), use_container_width=True)
     else:
-        st.info("👆 **Be the first to save your team!**")
-except:
-    st.info("**Loading league...**")
-
-st.markdown("---")
-st.caption("🎮 **EF Cup Fantasy League** - Share app link with everyone!")
+        st.info("👆 **Be the first to join the league!**")
+except Exception as e:
+    st.error(f"❌ **Sheet error:** {str(e)}")
+    st.info("Create 'EF Cup Fantasy League' sheet and share with your service account")
