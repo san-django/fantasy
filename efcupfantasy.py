@@ -6,7 +6,7 @@ import gspread
 
 # COMPLETE 36 PLAYERS LIST
 PLAYERS = [
-    {"id": 1, "name": "ROJIT SHRESTHA", "price": 8, "position": "GK", "realTeam": "JOSHI JAGUARS"},
+    {"id": 1, "name": "ROJIT SHRESTHA", "price": 8, "position": "GK", "realTeam": "JOSHI JAGUARS",},
     {"id": 2, "name": "SUJAN BK", "price": 7, "position": "GK", "realTeam": "SOTI SOLDIERS"},
     {"id": 3, "name": "PRASHANNA PAUDEL", "price": 7, "position": "GK", "realTeam": "ACHARYA ATTACKERS"},
     {"id": 4, "name": "TANISHK THAPA", "price": 8, "position": "GK", "realTeam": "ZENITH ZEBRAS"},
@@ -55,144 +55,200 @@ def get_sheet():
     sheet = client.open("efcupfantasy")
     return sheet.sheet1
 
-st.title("🏆 EF CUP FANTASY LEAGUE")
-st.markdown("**1 GK + 5 DEF/FWD + Dynamic Captain System**")
+# TABS
+tab1, tab2 = st.tabs(["📝 Build Team", "👑 Set Captain"])
 
-BUDGET = 100
-team_name = st.text_input("🏷️ **Team Name**")
-owner_name = st.text_input("👤 **Your Name**")
-
-# Initialize session state
-if 'selected_gk' not in st.session_state: st.session_state.selected_gk = []
-if 'selected_fwd' not in st.session_state: st.session_state.selected_fwd = []
-if 'selected_def' not in st.session_state: st.session_state.selected_def = []
-
-# Get ALL selected players to check captain status
-all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
-has_captain_selected = any(' ⭐' in player for player in all_selected)
-
-# POSITION COLUMNS - DYNAMIC CAPTAIN FILTERING
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("### 🧤 **GK (REQUIRED)**")
-    gk_options = [f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})" 
-                  for p in PLAYERS if p['position'] == 'GK']
-    new_gk = st.multiselect("Select 1 GK", gk_options, default=st.session_state.selected_gk, max_selections=1)
-    st.session_state.selected_gk = new_gk
-
-with col2:
-    st.markdown("### ⚽ **FWD**")
-    fwd_options = []
-    def_count = len(st.session_state.selected_def)
-    max_fwd = min(5 - def_count, 4)
+# TAB 1: BUILD TEAM
+with tab1:
+    st.markdown("**1 GK + 5 DEF/FWD + Max 1 Captain**")
     
-    for p in PLAYERS:
-        if p['position'] == 'FWD':
-            # Skip captains if already 1 captain selected anywhere
-            if p.get('iscaptain', False) and has_captain_selected:
-                continue
-            fwd_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
-    
-    st.caption(f"Max: {max_fwd} FWD")
-    new_fwd = st.multiselect("FWD", fwd_options, default=st.session_state.selected_fwd, max_selections=max_fwd)
-    st.session_state.selected_fwd = new_fwd
+    BUDGET = 100
+    team_name = st.text_input("🏷️ **Team Name**")
+    owner_name = st.text_input("👤 **Your Name**")
 
-with col3:
-    st.markdown("### 🛡️ **DEF**")
-    def_options = []
-    fwd_count = len(st.session_state.selected_fwd)
-    max_def = min(5 - fwd_count, 3)
-    
-    for p in PLAYERS:
-        if p['position'] == 'DEF':
-            # Skip captains if already 1 captain selected anywhere
-            if p.get('iscaptain', False) and has_captain_selected:
-                continue
-            def_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
-    
-    st.caption(f"Max: {max_def} DEF")
-    new_def = st.multiselect("DEF", def_options, default=st.session_state.selected_def, max_selections=max_def)
-    st.session_state.selected_def = new_def
+    # Initialize session state
+    if 'selected_gk' not in st.session_state: st.session_state.selected_gk = []
+    if 'selected_fwd' not in st.session_state: st.session_state.selected_fwd = []
+    if 'selected_def' not in st.session_state: st.session_state.selected_def = []
 
-# Update all_selected and captain count
-all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
-captain_count = len([p for p in all_selected if ' ⭐' in p])
-def_fwd_total = len(st.session_state.selected_fwd) + len(st.session_state.selected_def)
+    # Check if captain already selected
+    all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
+    has_captain_selected = any(' ⭐' in player for player in all_selected)
 
-# METRICS
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Total", len(all_selected), "6")
-col2.metric("GK", len(st.session_state.selected_gk), "1")
-col3.metric("DEF+FWD", def_fwd_total, "5")
-col4.metric("Captain", captain_count, "0-1")
-total_price = sum(int(p.split("₹")[1].split('⭐')[0].strip(")")) for p in all_selected) if all_selected else 0
-col5.metric("Budget", f"₹{total_price}", "₹100")
+    # POSITION COLUMNS
+    col1, col2, col3 = st.columns(3)
 
-# Status
-st.info(f"**Limits:** FWD={min(5-len(st.session_state.selected_def),4)} | DEF={min(5-len(st.session_state.selected_fwd),3)} | **Captains: {captain_count}/1**")
+    with col1:
+        st.markdown("### 🧤 **GK (1 REQUIRED)**")
+        gk_options = [f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})" 
+                      for p in PLAYERS if p['position'] == 'GK']
+        new_gk = st.multiselect("GK", gk_options, default=st.session_state.selected_gk, max_selections=1)
+        st.session_state.selected_gk = new_gk
 
-is_valid = (len(st.session_state.selected_gk) == 1 and 
-            def_fwd_total == 5 and 
-            len(all_selected) == 6 and 
-            total_price <= BUDGET)
+    with col2:
+        st.markdown("### ⚽ **FWD**")
+        fwd_options = []
+        def_count = len(st.session_state.selected_def)
+        max_fwd = min(5 - def_count, 4)
+        
+        for p in PLAYERS:
+            if p['position'] == 'FWD':
+                if p.get('iscaptain', False) and has_captain_selected: continue
+                fwd_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
+        
+        st.caption(f"Max: {max_fwd}")
+        new_fwd = st.multiselect("FWD", fwd_options, default=st.session_state.selected_fwd, max_selections=max_fwd)
+        st.session_state.selected_fwd = new_fwd
 
-if is_valid:
-    st.success("✅ **READY TO SAVE!**")
-else:
-    st.warning("⚠️ **Fix selection**")
+    with col3:
+        st.markdown("### 🛡️ **DEF**")
+        def_options = []
+        fwd_count = len(st.session_state.selected_fwd)
+        max_def = min(5 - fwd_count, 3)
+        
+        for p in PLAYERS:
+            if p['position'] == 'DEF':
+                if p.get('iscaptain', False) and has_captain_selected: continue
+                def_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
+        
+        st.caption(f"Max: {max_def}")
+        new_def = st.multiselect("DEF", def_options, default=st.session_state.selected_def, max_selections=max_def)
+        st.session_state.selected_def = new_def
 
-# YOUR TEAM LIST
-if all_selected:
-    st.markdown("### 📋 **Your Team:**")
-    for player in all_selected:
-        captain_emoji = " ⭐ **(C)**" if ' ⭐' in player else ""
-        st.write(f"• {player.replace(' ⭐', '')}{captain_emoji}")
-
-# SAVE BUTTON
-if st.button("💾 **SAVE TO efcupfantasy**", type="primary", use_container_width=True):
+    # Update selections
+    all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
+    captain_count = len([p for p in all_selected if ' ⭐' in p])
     def_fwd_total = len(st.session_state.selected_fwd) + len(st.session_state.selected_def)
-    
-    if not team_name.strip() or not owner_name.strip():
-        st.error("❌ **Team Name & Owner required!**")
-    elif len(st.session_state.selected_gk) != 1:
-        st.error("❌ **1 GK REQUIRED!**")
-    elif def_fwd_total != 5:
-        st.error(f"❌ **Need 5 DEF+FWD!** (Have {def_fwd_total})")
-    elif captain_count > 1:
-        st.error("❌ **Only 1 Captain allowed!**")
-    elif len(all_selected) != 6:
-        st.error("❌ **Exactly 6 players needed!**")
-    elif total_price > BUDGET:
-        st.error(f"❌ **Over budget**: ₹{total_price}")
+    total_price = sum(int(p.split("₹")[1].split('⭐')[0].strip(")")) for p in all_selected) if all_selected else 0
+
+    # METRICS
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total", len(all_selected), "6")
+    col2.metric("GK", len(st.session_state.selected_gk), "1")
+    col3.metric("DEF+FWD", def_fwd_total, "5")
+    col4.metric("Captain", captain_count, "0-1")
+    col5.metric("Budget", f"₹{total_price}", "₹100")
+
+    st.info(f"FWD max={min(5-len(st.session_state.selected_def),4)} | DEF max={min(5-len(st.session_state.selected_fwd),3)} | Captains: {captain_count}/1")
+
+    is_valid = (len(st.session_state.selected_gk) == 1 and def_fwd_total == 5 and len(all_selected) == 6 and total_price <= BUDGET)
+
+    if is_valid:
+        st.success("✅ **READY TO SAVE!**")
     else:
-        try:
-            worksheet = get_sheet()
-            team_players = []
-            positions = []
-            real_teams = []
-            captains = []
-            for sel in all_selected:
-                name = sel.split(" (")[0].replace(' ⭐', '')
-                player = next(p for p in PLAYERS if p["name"] == name)
-                team_players.append(player['name'])
-                positions.append(player['position'])
-                real_teams.append(player['realTeam'])
-                captains.append("⭐" if player.get('iscaptain', False) else "")
+        st.warning("⚠️ **Fix selection**")
+
+    # YOUR TEAM
+    if all_selected:
+        st.markdown("### 📋 **Your Team:**")
+        for player in all_selected:
+            captain_emoji = " ⭐ **(C)**" if ' ⭐' in player else ""
+            st.write(f"• {player.replace(' ⭐', '')}{captain_emoji}")
+
+    # SAVE
+    if st.button("💾 **SAVE TEAM**", type="primary", use_container_width=True):
+        def_fwd_total = len(st.session_state.selected_fwd) + len(st.session_state.selected_def)
+        if not team_name.strip() or not owner_name.strip():
+            st.error("❌ Team Name & Owner required!")
+        elif len(st.session_state.selected_gk) != 1:
+            st.error("❌ 1 GK REQUIRED!")
+        elif def_fwd_total != 5:
+            st.error(f"❌ Need 5 DEF+FWD! (Have {def_fwd_total})")
+        elif captain_count > 1:
+            st.error("❌ Only 1 Captain allowed!")
+        elif total_price > BUDGET:
+            st.error(f"❌ Over budget: ₹{total_price}")
+        else:
+            try:
+                worksheet = get_sheet()
+                team_players = []
+                positions = []
+                real_teams = []
+                captains = []
+                for sel in all_selected:
+                    name = sel.split(" (")[0].replace(' ⭐', '')
+                    player = next(p for p in PLAYERS if p["name"] == name)
+                    team_players.append(player['name'])
+                    positions.append(player['position'])
+                    real_teams.append(player['realTeam'])
+                    captains.append("⭐" if player.get('iscaptain', False) else "")
+                
+                worksheet.append_row([
+                    team_name.strip(),
+                    total_price,
+                    ", ".join(team_players),
+                    ", ".join(positions),
+                    ", ".join(real_teams),
+                    "",  # Captain column - set later
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    owner_name.strip()
+                ])
+                
+                st.success(f"🎉 **SAVED!** 1-{len(st.session_state.selected_fwd)}-{len(st.session_state.selected_def)} | {captain_count}⭐")
+                st.balloons()
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ {str(e)}")
+
+# TAB 2: SET CAPTAIN FOR SAVED TEAMS (FPL STYLE)
+with tab2:
+    st.markdown("### 👑 **SET CAPTAIN FOR SAVED TEAM**")
+    
+    try:
+        worksheet = get_sheet()
+        records = worksheet.get_all_records()
+        
+        if not records:
+            st.info("👆 **Save teams first in Build Team tab!**")
+        else:
+            # Team selector
+            team_options = [f"{row['Team']} - {row['Owner']}" for row in records]
+            selected_team_idx = st.selectbox("Select saved team:", range(len(team_options)), 
+                                           format_func=lambda i: team_options[i])
             
-            worksheet.append_row([
-                team_name.strip(),
-                total_price,
-                ", ".join(team_players),
-                ", ".join(positions),
-                ", ".join(real_teams),
-                ", ".join(captains),
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                owner_name.strip()
-            ])
+            selected_team = records[selected_team_idx]
+            team_players = selected_team['Players'].split(', ')
             
-            st.success(f"🎉 **SAVED!** 1-{len(st.session_state.selected_fwd)}-{len(st.session_state.selected_def)} | {captain_count}⭐")
-            st.balloons()
-            st.rerun()
-        except Exception as e:
-            st.error(f"❌ {str(e)}")
+            st.markdown(f"### 📋 **{selected_team['Team']}**")
+            st.caption(f"Owner: {selected_team['Owner']} | Budget: ₹{selected_team['Price']}")
+            
+            # Show team in columns
+            cols = st.columns(3)
+            for i, player in enumerate(team_players):
+                with cols[i % 3]:
+                    st.write(f"• {player}")
+            
+            # CAPTAIN SELECTION
+            st.markdown("---")
+            st.markdown("### 👑 **CHOOSE CAPTAIN**")
+            
+            captain_options = team_players
+            selected_captain = st.selectbox("**Captain** (2x points):", captain_options, index=0)
+            
+            vice_options = ["None"] + [p for p in team_players if p != selected_captain]
+            selected_vice = st.selectbox("**Vice-Captain** (backup):", vice_options, index=0)
+            
+            if st.button("✅ **SET CAPTAIN**", type="primary"):
+                try:
+                    row_num = selected_team_idx + 2  # +2 for header
+                    
+                    # Update Captain column (column F = index 6)
+                    worksheet.update(f'F{row_num}', f"{selected_captain}|{selected_vice if selected_vice != 'None' else ''}")
+                    
+                    st.success("🎉 **Captain Updated!**")
+                    st.balloons()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ {str(e)}")
+            
+            # Show recent captain changes
+            st.markdown("---")
+            st.markdown("### 📊 **RECENT CAPTAINS**")
+            df = pd.DataFrame(records.tail(10))
+            if 'Captains' in df.columns:
+                st.dataframe(df[['Team', 'Owner', 'Captains']], use_container_width=True)
+            else:
+                st.info("Captain column will appear after first captain set!")
+                
+    except Exception as e:
+        st.error(f"❌ {str(e)}")
