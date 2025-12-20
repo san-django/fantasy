@@ -44,7 +44,7 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
 ]
 
-# SHEET CONNECTION (unchanged)
+# SHEET CONNECTION
 @st.cache_resource
 def get_sheet():
     creds = service_account.Credentials.from_service_account_info(
@@ -56,7 +56,7 @@ def get_sheet():
     return sheet.sheet1
 
 st.title("🏆 EF CUP FANTASY LEAGUE")
-st.markdown("**1 GK REQUIRED + 5 DEF/FWD total**")
+st.markdown("**1 GK + 5 DEF/FWD + Dynamic Captain System**")
 
 BUDGET = 100
 team_name = st.text_input("🏷️ **Team Name**")
@@ -67,71 +67,87 @@ if 'selected_gk' not in st.session_state: st.session_state.selected_gk = []
 if 'selected_fwd' not in st.session_state: st.session_state.selected_fwd = []
 if 'selected_def' not in st.session_state: st.session_state.selected_def = []
 
-# POSITION COLUMNS - 1 GK + 5 DEF/FWD
+# Get ALL selected players to check captain status
+all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
+has_captain_selected = any(' ⭐' in player for player in all_selected)
+
+# POSITION COLUMNS - DYNAMIC CAPTAIN FILTERING
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("### 🧤 **GK (REQUIRED)**")
-    gk_options = [f"{p['name']} (₹{p['price']})" for p in PLAYERS if p['position'] == 'GK']
+    gk_options = [f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})" 
+                  for p in PLAYERS if p['position'] == 'GK']
     new_gk = st.multiselect("Select 1 GK", gk_options, default=st.session_state.selected_gk, max_selections=1)
     st.session_state.selected_gk = new_gk
 
 with col2:
     st.markdown("### ⚽ **FWD**")
-    fwd_options = [f"{p['name']} (₹{p['price']})" for p in PLAYERS if p['position'] == 'FWD']
+    fwd_options = []
     def_count = len(st.session_state.selected_def)
-    max_fwd = 5 - def_count  # Total DEF+FWD = 5
-    max_fwd = min(max_fwd, 4)  # Max 4 FWD
+    max_fwd = min(5 - def_count, 4)
+    
+    for p in PLAYERS:
+        if p['position'] == 'FWD':
+            # Skip captains if already 1 captain selected anywhere
+            if p.get('iscaptain', False) and has_captain_selected:
+                continue
+            fwd_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
+    
     st.caption(f"Max: {max_fwd} FWD")
     new_fwd = st.multiselect("FWD", fwd_options, default=st.session_state.selected_fwd, max_selections=max_fwd)
     st.session_state.selected_fwd = new_fwd
 
 with col3:
     st.markdown("### 🛡️ **DEF**")
-    def_options = [f"{p['name']} (₹{p['price']})" for p in PLAYERS if p['position'] == 'DEF']
+    def_options = []
     fwd_count = len(st.session_state.selected_fwd)
-    max_def = 5 - fwd_count  # Total DEF+FWD = 5
-    max_def = min(max_def, 3)  # Max 3 DEF
+    max_def = min(5 - fwd_count, 3)
+    
+    for p in PLAYERS:
+        if p['position'] == 'DEF':
+            # Skip captains if already 1 captain selected anywhere
+            if p.get('iscaptain', False) and has_captain_selected:
+                continue
+            def_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
+    
     st.caption(f"Max: {max_def} DEF")
     new_def = st.multiselect("DEF", def_options, default=st.session_state.selected_def, max_selections=max_def)
     st.session_state.selected_def = new_def
 
-# Combine: 1 GK + DEF + FWD = TOTAL 6
-selected_players = (st.session_state.selected_gk + 
-                   st.session_state.selected_fwd + 
-                   st.session_state.selected_def)
-
+# Update all_selected and captain count
+all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
+captain_count = len([p for p in all_selected if ' ⭐' in p])
 def_fwd_total = len(st.session_state.selected_fwd) + len(st.session_state.selected_def)
 
-# Budget & Status
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total", len(selected_players), "6")
+# METRICS
+col1, col2, col3, col4, col5 = st.columns(5)
+col1.metric("Total", len(all_selected), "6")
 col2.metric("GK", len(st.session_state.selected_gk), "1")
 col3.metric("DEF+FWD", def_fwd_total, "5")
-col4.metric("Budget", f"₹{sum(int(p.split('₹')[1].strip(')')) for p in selected_players) if selected_players else 0}", "₹100")
+col4.metric("Captain", captain_count, "0-1")
+total_price = sum(int(p.split("₹")[1].split('⭐')[0].strip(")")) for p in all_selected) if all_selected else 0
+col5.metric("Budget", f"₹{total_price}", "₹100")
 
-if selected_players:
-    total_price = sum(int(p.split("₹")[1].strip(")")) for p in selected_players)
-    budget_left = BUDGET - total_price
-    
-    st.info(f"**Limits:** FWD max={min(5-len(st.session_state.selected_def),4)} | DEF max={min(5-len(st.session_state.selected_fwd),3)}")
-    
-    is_valid = (len(st.session_state.selected_gk) == 1 and 
-                def_fwd_total == 5 and 
-                len(selected_players) == 6 and 
-                budget_left >= 0)
-    
-    if is_valid:
-        st.success(f"✅ **PERFECT TEAM!** 1GK + {len(st.session_state.selected_fwd)}FWD + {len(st.session_state.selected_def)}DEF")
-        st.markdown("### 📋 **Your Team:**")
-        for player in selected_players:
-            st.write(f"• {player}")
-    elif len(st.session_state.selected_gk) != 1:
-        st.error("❌ **1 GK REQUIRED!**")
-    elif def_fwd_total != 5:
-        st.warning(f"❌ **Need exactly 5 DEF+FWD!** (Have {def_fwd_total})")
-    elif budget_left < 0:
-        st.error(f"❌ **Over budget** ₹{-budget_left}!")
+# Status
+st.info(f"**Limits:** FWD={min(5-len(st.session_state.selected_def),4)} | DEF={min(5-len(st.session_state.selected_fwd),3)} | **Captains: {captain_count}/1**")
+
+is_valid = (len(st.session_state.selected_gk) == 1 and 
+            def_fwd_total == 5 and 
+            len(all_selected) == 6 and 
+            total_price <= BUDGET)
+
+if is_valid:
+    st.success("✅ **READY TO SAVE!**")
+else:
+    st.warning("⚠️ **Fix selection**")
+
+# YOUR TEAM LIST
+if all_selected:
+    st.markdown("### 📋 **Your Team:**")
+    for player in all_selected:
+        captain_emoji = " ⭐ **(C)**" if ' ⭐' in player else ""
+        st.write(f"• {player.replace(' ⭐', '')}{captain_emoji}")
 
 # SAVE BUTTON
 if st.button("💾 **SAVE TO efcupfantasy**", type="primary", use_container_width=True):
@@ -142,52 +158,41 @@ if st.button("💾 **SAVE TO efcupfantasy**", type="primary", use_container_widt
     elif len(st.session_state.selected_gk) != 1:
         st.error("❌ **1 GK REQUIRED!**")
     elif def_fwd_total != 5:
-        st.error(f"❌ **Need 5 DEF+FWD total!** (Have {def_fwd_total})")
-    elif len(selected_players) != 6:
-        st.error(f"❌ **Exactly 6 players needed!**")
+        st.error(f"❌ **Need 5 DEF+FWD!** (Have {def_fwd_total})")
+    elif captain_count > 1:
+        st.error("❌ **Only 1 Captain allowed!**")
+    elif len(all_selected) != 6:
+        st.error("❌ **Exactly 6 players needed!**")
+    elif total_price > BUDGET:
+        st.error(f"❌ **Over budget**: ₹{total_price}")
     else:
-        total_price = sum(int(p.split("₹")[1].strip(")")) for p in selected_players)
-        if total_price > BUDGET:
-            st.error(f"❌ **Over budget**: ₹{total_price}")
-        else:
-            try:
-                worksheet = get_sheet()
-                team_players = []
-                positions = []
-                real_teams = []
-                for sel in selected_players:
-                    name = sel.split(" (")[0]
-                    player = next(p for p in PLAYERS if p["name"] == name)
-                    team_players.append(player['name'])
-                    positions.append(player['position'])
-                    real_teams.append(player['realTeam'])
-                
-                worksheet.append_row([
-                    team_name.strip(),
-                    total_price,
-                    ", ".join(team_players),
-                    ", ".join(positions),
-                    ", ".join(real_teams),
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    owner_name.strip()
-                ])
-                
-                st.success(f"🎉 **SAVED!** 1-{len(st.session_state.selected_fwd)}-{len(st.session_state.selected_def)}")
-                st.balloons()
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ {str(e)}")
-
-# LIVE LEAGUE
-st.markdown("---")
-st.subheader("🏆 **efcupfantasy LIVE**")
-try:
-    worksheet = get_sheet()
-    records = worksheet.get_all_records()
-    if records:
-        df = pd.DataFrame(records)
-        st.dataframe(df.tail(20), use_container_width=True)
-    else:
-        st.info("👆 **Save first team!**")
-except Exception as e:
-    st.error(f"❌ {e}")
+        try:
+            worksheet = get_sheet()
+            team_players = []
+            positions = []
+            real_teams = []
+            captains = []
+            for sel in all_selected:
+                name = sel.split(" (")[0].replace(' ⭐', '')
+                player = next(p for p in PLAYERS if p["name"] == name)
+                team_players.append(player['name'])
+                positions.append(player['position'])
+                real_teams.append(player['realTeam'])
+                captains.append("⭐" if player.get('iscaptain', False) else "")
+            
+            worksheet.append_row([
+                team_name.strip(),
+                total_price,
+                ", ".join(team_players),
+                ", ".join(positions),
+                ", ".join(real_teams),
+                ", ".join(captains),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                owner_name.strip()
+            ])
+            
+            st.success(f"🎉 **SAVED!** 1-{len(st.session_state.selected_fwd)}-{len(st.session_state.selected_def)} | {captain_count}⭐")
+            st.balloons()
+            st.rerun()
+        except Exception as e:
+            st.error(f"❌ {str(e)}")
