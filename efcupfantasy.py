@@ -1,6 +1,8 @@
 import streamlit as st
 from datetime import datetime
-import json
+import pandas as pd
+import gspread
+from google.oauth2 import service_account
 
 # COMPLETE 36 PLAYERS - FIXED PRICES FOR ₹100 BUDGET
 PLAYERS = [
@@ -49,22 +51,25 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
 ]
 
-# SESSION STATE - WORKS 100% ON STREAMLIT CLOUD
-if "teams" not in st.session_state:
-    st.session_state.teams = []
+# YOUR SHEET ID HERE (replace with your actual ID)
+SHEET_ID = "1n89U49NJ5JTQ0_YSA3li1AEgOJ_wpHcCsupRCLuf7iQ"  # ← PASTE YOUR SHEET ID
 
-st.title("🏆 EF CUP FANTASY")
-st.markdown("**₹100 Budget • 6 Players • Save & Download**")
+@st.cache_resource
+def connect_sheets():
+    # Simple public sheet access
+    gc = gspread.service_account()
+    sheet = gc.open_by_key(SHEET_ID)
+    return sheet.sheet1
 
+st.title("🏆 EF CUP FANTASY LEAGUE")
+st.markdown("**Public League - Everyone's teams saved LIVE!**")
+
+# MAIN APP (same beautiful interface)
 BUDGET = 100
+team_name = st.text_input("🏷️ **Team Name**")
+owner_name = st.text_input("👤 **Your Name**")
 
-# Team name input
-team_name = st.text_input("🏷️ **Team Name**", placeholder="Enter your team name")
-
-# Player selection by position
-st.subheader("Select Players")
 col1, col2, col3 = st.columns(3)
-
 with col1:
     st.markdown("### 🧤 **Goalkeepers**")
     gk_options = [f"{p['name']} ₹{p['price']}" for p in PLAYERS if p['position'] == 'GK']
@@ -80,10 +85,9 @@ with col3:
     def_options = [f"{p['name']} ₹{p['price']}" for p in PLAYERS if p['position'] == 'DEF']
     selected_def = st.multiselect("DEF", def_options, max_selections=2)
 
-# Combine selections
 selected_players = selected_gk + selected_fwd + selected_def
 
-# Budget calculator
+# Budget display
 if selected_players:
     total_price = sum(int(p.split("₹")[1]) for p in selected_players)
     budget_left = BUDGET - total_price
@@ -94,82 +98,66 @@ if selected_players:
     col3.metric("✅ Status", "OK" if budget_left >= 0 else "OVER", "Budget")
     
     if budget_left >= 0:
-        st.success(f"✅ **Budget OK!** ({len(selected_players)}/6 players)")
+        st.success(f"✅ **Budget OK!** ({len(selected_players)}/6)")
         st.markdown("### 📋 **Your Team**")
         for player in selected_players:
             st.write(f"• {player}")
-    else:
-        st.error(f"❌ **Over budget by ₹{-budget_left}!**")
 
-# SAVE TEAM
-if st.button("💾 **SAVE TEAM**", type="primary", use_container_width=True):
-    if not team_name.strip():
-        st.error("❌ **Enter team name first!**")
+# 🚀 SAVE TO PUBLIC GOOGLE SHEETS
+if st.button("💾 **SAVE TO PUBLIC LEAGUE**", type="primary", use_container_width=True):
+    if not team_name or not owner_name:
+        st.error("❌ **Enter Team Name & Your Name!**")
     elif len(selected_players) != 6:
-        st.error(f"❌ **Need exactly 6 players!** (You have {len(selected_players)})")
+        st.error(f"❌ **Need exactly 6 players!**")
     else:
         total_price = sum(int(p.split("₹")[1]) for p in selected_players)
         if total_price > BUDGET:
-            st.error(f"❌ **Over budget: ₹{total_price}!**")
+            st.error(f"❌ **Over budget!**")
         else:
-            # Get full player data
-            team_players = []
-            for sel in selected_players:
-                name = sel.split(" ")[0]
-                player = next((p for p in PLAYERS if p["name"] == name), None)
-                if player:
-                    team_players.append(player)
-            
-            # Save to session
-            st.session_state.teams.append({
-                "name": team_name.strip(),
-                "players": team_players,
-                "total_price": total_price,
-                "saved": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-            
-            st.success(f"🎉 **'{team_name}' SAVED!** ₹{total_price}/100")
-            st.balloons()
-            st.rerun()
+            try:
+                worksheet = connect_sheets()
+                
+                # Get full player data
+                team_players = []
+                positions = []
+                real_teams = []
+                for sel in selected_players:
+                    name = sel.split(" ")[0]
+                    player = next(p for p in PLAYERS if p["name"] == name)
+                    team_players.append(player['name'])
+                    positions.append(player['position'])
+                    real_teams.append(player['realTeam'])
+                
+                # SAVE TO PUBLIC SHEET
+                worksheet.append_row([
+                    team_name.strip(),
+                    total_price,
+                    ", ".join(team_players),
+                    ", ".join(positions),
+                    ", ".join(real_teams),
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    owner_name.strip()
+                ])
+                
+                st.success(f"🎉 **'{team_name}' ADDED TO PUBLIC LEAGUE!**")
+                st.balloons()
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ **Save failed:** {str(e)}")
 
-# DOWNLOAD BUTTON
-if st.session_state.teams:
-    st.markdown("---")
-    json_data = json.dumps(st.session_state.teams, indent=2, ensure_ascii=False)
-    st.download_button(
-        label="💾 **DOWNLOAD ALL TEAMS** (JSON)",
-        data=json_data,
-        file_name=f"efcup_teams_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-        mime="application/json",
-        type="secondary",
-        use_container_width=True
-    )
+# LIVE LEAGUE TABLE
+st.markdown("---")
+st.subheader("🏆 **LIVE LEAGUE - All City Teams**")
 
-# DISPLAY SAVED TEAMS
-tab1, tab2 = st.tabs(["📱 **Recent Teams**", "📋 **All Teams**"])
-
-with tab1:
-    if not st.session_state.teams:
-        st.info("👆 **Save your first team above!**")
+try:
+    worksheet = connect_sheets()
+    df = pd.DataFrame(worksheet.get_all_records())
+    if not df.empty:
+        st.dataframe(df.tail(50), use_container_width=True)  # Last 50 teams
     else:
-        st.markdown(f"**Total teams saved: {len(st.session_state.teams)}**")
-        for team in st.session_state.teams[-5:][::-1]:
-            st.markdown(f"**{team['name']}** • ₹{team['total_price']} • {team['saved']}")
-
-with tab2:
-    if not st.session_state.teams:
-        st.info("**No teams saved yet!**")
-    else:
-        for i, team in enumerate(st.session_state.teams):
-            with st.expander(f"#{i+1} {team['name']} - ₹{team['total_price']}"):
-                st.caption(f"**Saved:** {team['saved']}")
-                cols = st.columns(3)
-                for j, player in enumerate(team['players']):
-                    with cols[j%3]:
-                        st.markdown(f"""
-                        **{player['name']}**  
-                        _{player['position']}_ • {player['realTeam']}
-                        """)
+        st.info("👆 **Be the first to save your team!**")
+except:
+    st.info("**Loading league...**")
 
 st.markdown("---")
-st.caption("🎮 **EF Cup Fantasy** - Powered by Streamlit")
+st.caption("🎮 **EF Cup Fantasy League** - Share app link with everyone!")
