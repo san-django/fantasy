@@ -167,8 +167,8 @@ if st.button("💾 **SAVE TEAM + SET CAPTAIN**", type="primary", use_container_w
         st.session_state.total_price = total_price
         st.session_state.show_captain_select = True
 
-# CAPTAIN SELECTION MODAL
-if st.session_state.show_captain_select:
+# CAPTAIN SELECTION MODAL - FIXED
+if st.session_state.get('show_captain_select', False):
     st.markdown("---")
     st.markdown("### 👑 **SELECT CAPTAIN**")
     
@@ -183,11 +183,13 @@ if st.session_state.show_captain_select:
             try:
                 worksheet = get_sheet()
                 
-                # Prepare data
+                # Prepare data with CAPTAIN NAME (not star)
                 team_players_str = ", ".join([p['name'] for p in team_players])
                 positions_str = ", ".join([p['position'] for p in team_players])
                 real_teams_str = ", ".join([p['realTeam'] for p in team_players])
-                captains_str = ", ".join(["⭐" if p['name'] == selected_captain else "" for p in team_players])
+                
+                # CAPTAIN NAME saved directly
+                captain_name = selected_captain
                 
                 worksheet.append_row([
                     st.session_state.team_name,
@@ -195,18 +197,19 @@ if st.session_state.show_captain_select:
                     team_players_str,
                     positions_str,
                     real_teams_str,
-                    captains_str,
+                    captain_name,  # CAPTAIN NAME SAVED HERE
                     datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     st.session_state.owner_name
                 ])
                 
-                st.success(f"🎉 **TEAM SAVED WITH CAPTAIN: {selected_captain}!**")
+                st.success(f"🎉 **TEAM SAVED! Captain: {captain_name}**")
                 st.balloons()
                 
                 # Reset everything
                 for key in ['selected_gk', 'selected_fwd', 'selected_def', 'show_captain_select', 
                            'team_players', 'team_name', 'owner_name', 'total_price']:
-                    del st.session_state[key]
+                    if key in st.session_state:
+                        del st.session_state[key]
                 st.rerun()
                 
             except Exception as e:
