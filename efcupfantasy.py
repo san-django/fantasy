@@ -55,7 +55,7 @@ def get_sheet():
         scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     )
     client = gspread.authorize(creds)
-    sheet = client.open("EF Cup Fantasy League")  # Create this sheet manually
+    sheet = client.open("efcupfantasy")  # Create this sheet manually
     return sheet.worksheet("Sheet1")
 
 BUDGET = 100
