@@ -44,10 +44,7 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
 ]
 
-st.title("🏆 EF CUP FANTASY LEAGUE")
-st.markdown("**Dynamic DEF/FWD - Auto-adjusts max selections!**")
-
-# SHEET CONNECTION (working)
+# SHEET CONNECTION (your "efcupfantasy")
 @st.cache_resource
 def get_sheet():
     creds = service_account.Credentials.from_service_account_info(
@@ -58,84 +55,88 @@ def get_sheet():
     sheet = client.open("efcupfantasy")
     return sheet.sheet1
 
+st.title("🏆 EF CUP FANTASY LEAGUE")
+st.markdown("**Dynamic DEF/FWD - Selections STAY!**")
+
 BUDGET = 100
 team_name = st.text_input("🏷️ **Team Name**")
 owner_name = st.text_input("👤 **Your Name**")
 
-# DYNAMIC SELECTION COLUMNS
+# Initialize session state for selections
+if 'selected_gk' not in st.session_state:
+    st.session_state.selected_gk = []
+if 'selected_fwd' not in st.session_state:
+    st.session_state.selected_fwd = []
+if 'selected_def' not in st.session_state:
+    st.session_state.selected_def = []
+
+# POSITION COLUMNS - FIXED SESSION STATE
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("### 🧤 **GK**")
+    st.markdown("### 🧤 **GK (1)**")
     gk_options = [f"{p['name']} (₹{p['price']})" for p in PLAYERS if p['position'] == 'GK']
-    selected_gk = st.multiselect("GK", gk_options, max_selections=1)
+    new_gk = st.multiselect("GK", gk_options, default=st.session_state.selected_gk, max_selections=1)
+    st.session_state.selected_gk = new_gk
 
 with col2:
     st.markdown("### ⚽ **FWD**")
     fwd_options = [f"{p['name']} (₹{p['price']})" for p in PLAYERS if p['position'] == 'FWD']
-    # DYNAMIC MAX: if 2 DEF selected → max 3 FWD
-    def_count = len(st.session_state.get('selected_def', []))
-    max_fwd = 3 if def_count >= 2 else 4
-    selected_fwd = st.multiselect("FWD", fwd_options, max_selections=max_fwd)
+    # Dynamic max based on DEF count
+    def_count = len(st.session_state.selected_def)
+    max_fwd = 3 if def_count == 2 else 4
+    st.caption(f"Max: {max_fwd} FWD")
+    new_fwd = st.multiselect("FWD", fwd_options, default=st.session_state.selected_fwd, max_selections=max_fwd)
+    st.session_state.selected_fwd = new_fwd
 
 with col3:
     st.markdown("### 🛡️ **DEF**")
     def_options = [f"{p['name']} (₹{p['price']})" for p in PLAYERS if p['position'] == 'DEF']
-    # DYNAMIC MAX: if 2 FWD selected → max 3 DEF
-    fwd_count = len(selected_fwd)
+    # Dynamic max based on FWD count
+    fwd_count = len(st.session_state.selected_fwd)
     max_def = 3 if fwd_count >= 2 else 2
-    selected_def = st.multiselect("DEF", def_options, max_selections=max_def)
+    st.caption(f"Max: {max_def} DEF")
+    new_def = st.multiselect("DEF", def_options, default=st.session_state.selected_def, max_selections=max_def)
+    st.session_state.selected_def = new_def
 
-# Store selections in session for dynamic updates
-if 'selected_def' not in st.session_state:
-    st.session_state.selected_def = []
-if 'selected_fwd' not in st.session_state:
-    st.session_state.selected_fwd = []
+# Combine selections
+selected_players = (st.session_state.selected_gk + 
+                   st.session_state.selected_fwd + 
+                   st.session_state.selected_def)
 
-# Update session state
-st.session_state.selected_fwd = selected_fwd
-st.session_state.selected_def = selected_def
-
-# Combine all selections
-selected_players = selected_gk + selected_fwd + selected_def
-
-# Budget & validation
+# Budget & Status
 if selected_players:
     total_price = sum(int(p.split("₹")[1].strip(")")) for p in selected_players)
     budget_left = BUDGET - total_price
     
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Players", len(selected_players), "6")
+    col1.metric("Total", len(selected_players), "6")
     col2.metric("Budget", f"₹{total_price}", f"₹{budget_left}")
+    col3.metric("Status", "✅ READY" if budget_left >= 0 and len(selected_players) == 6 else "⚠️ FIX")
     
-    # Show current limits
-    st.info(f"**Max FWD:** {3 if len(selected_def) >= 2 else 4} | **Max DEF:** {3 if len(selected_fwd) >= 2 else 2}")
+    # Live limits display
+    st.info(f"**Limits:** FWD max={3 if len(st.session_state.selected_def)==2 else 4} | DEF max={3 if len(st.session_state.selected_fwd)>=2 else 2}")
     
     if budget_left >= 0 and len(selected_players) == 6:
-        st.success(f"✅ **VALID TEAM READY!** {len(selected_gk)}GK + {len(selected_fwd)}FWD + {len(selected_def)}DEF")
-        st.markdown("### 📋 **Your Team:**")
+        st.success(f"✅ **{len(st.session_state.selected_gk)}-{len(st.session_state.selected_fwd)}-{len(st.session_state.selected_def)} READY!**")
+        st.markdown("### 📋 **Team:**")
         for player in selected_players:
             st.write(f"• {player}")
-    elif budget_left < 0:
-        st.error(f"❌ **Over budget** ₹{-budget_left}!")
-    else:
-        st.warning("⚠️ **Select exactly 6 players**")
 
-# SAVE BUTTON
+# SAVE TO SHEET
 if st.button("💾 **SAVE TO efcupfantasy**", type="primary", use_container_width=True):
     if not team_name.strip() or not owner_name.strip():
-        st.error("❌ **Team Name & Your Name required!**")
+        st.error("❌ Name fields required!")
     elif len(selected_players) != 6:
-        st.error(f"❌ **Exactly 6 players needed!** (You have {len(selected_players)})")
+        st.error(f"❌ Need 6 players! (Have {len(selected_players)})")
     else:
         total_price = sum(int(p.split("₹")[1].strip(")")) for p in selected_players)
         if total_price > BUDGET:
-            st.error(f"❌ **Over budget**: ₹{total_price}")
+            st.error(f"❌ Over budget: ₹{total_price}")
         else:
             try:
                 worksheet = get_sheet()
-                
-                # Player details
+                # Player details extraction
                 team_players = []
                 positions = []
                 real_teams = []
@@ -156,23 +157,22 @@ if st.button("💾 **SAVE TO efcupfantasy**", type="primary", use_container_widt
                     owner_name.strip()
                 ])
                 
-                st.success(f"🎉 **{team_name} SAVED!** {len(selected_gk)}-{len(selected_fwd)}-{len(selected_def)}")
+                st.success(f"🎉 **SAVED!** {len(st.session_state.selected_gk)}-{len(st.session_state.selected_fwd)}-{len(st.session_state.selected_def)}")
                 st.balloons()
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ **Save error:** {str(e)}")
+                st.error(f"❌ {str(e)}")
 
 # LIVE LEAGUE TABLE
 st.markdown("---")
-st.subheader("🏆 **efcupfantasy LIVE LEAGUE**")
+st.subheader("🏆 **efcupfantasy LEAGUE**")
 try:
     worksheet = get_sheet()
     records = worksheet.get_all_records()
     if records:
         df = pd.DataFrame(records)
         st.dataframe(df.tail(20), use_container_width=True)
-        st.success(f"✅ **{len(records)} teams joined!**")
     else:
-        st.info("👆 **Be first to save!**")
+        st.info("👆 Save first team!")
 except Exception as e:
     st.error(f"❌ {e}")
