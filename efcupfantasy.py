@@ -78,15 +78,15 @@ tab1, tab2, tab3, tab4 = st.tabs(["🔐 Login", "📝 Build Team", "👑 My Team
 with tab1:
     st.markdown("### 🔐 **LOGIN WITH TEAM NAME**")
     
-   if st.session_state.logged_in_team:
+    if st.session_state.logged_in_team:
     # SHOW ONLY LOGGED IN TEAM'S DETAILS
-    st.success(f"✅ **Logged in: {st.session_state.logged_in_team}**")
+        st.success(f"✅ **Logged in: {st.session_state.logged_in_team}**")
     
     # Find EXACTLY this user's team
-    teams_worksheet = get_sheet()
-    teams_data = teams_worksheet.get_all_records()
+        teams_worksheet = get_sheet()
+        teams_data = teams_worksheet.get_all_records()
     
-    user_team = next((team for team in teams_data 
+        user_team = next((team for team in teams_data 
                      if team.get('Team', '').strip() == st.session_state.logged_in_team), None)
     
     if user_team:
