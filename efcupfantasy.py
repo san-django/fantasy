@@ -146,20 +146,7 @@ with tab1:
             st.info("**No teams yet! Create one in Build Team tab.**")
 
 
-# TAB 2: BUILD TEAM (Only if not logged in or for new teams)
-with tab2:
-    st.markdown("### 🏗️ **BUILD YOUR TEAM**")
-    
-    if st.session_state.logged_in_team:
-        st.info("✅ Already logged in! View your team in 'My Team' tab.")
-    else:
-        team_name = st.text_input("🏷️ **Team Name**", key="team_name")
-        owner_name = st.text_input("👤 **Owner Name**", key="owner_name")
-        
-        if team_name and owner_name:
-            st.markdown("---")
-            st.markdown("**🎯 Select 1 GK + 5 DEF/FWD (Budget: ₹100)**")
-            
+
             # COMPLETE 36 PLAYERS LIST
             PLAYERS = [
     {"id": 1, "name": "ROJIT SHRESTHA", "price": 13, "position": "GK", "realTeam": "JOSHI JAGUARS",},
@@ -199,69 +186,83 @@ with tab2:
     {"id": 35, "name": "ANUPAM BISTA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
     {"id": 36, "name": "TASHI SHERPA", "price": 10, "position": "FWD", "realTeam": "BENZE BULLS"},
             ]
+            # TAB 2: BUILD TEAM (Only if not logged in or for new teams)
+# TAB 2: BUILD TEAM WITH PRICE FILTERS
+with tab2:
+    st.markdown("### 🏗️ **BUILD TEAM**")
+    if st.session_state.logged_in_team:
+        st.info("✅ Logged in! Use 'My Team' tab.")
+    else:
+        team_name = st.text_input("Team Name:")
+        owner_name = st.text_input("Owner Name:")
+        
+        if team_name and owner_name:
+            # PRICE FILTERS
+            col1, col2 = st.columns(2)
+            with col1:
+                max_price = st.slider("Max Price per player:", 8, 15, 15)
+            with col2:
+                remaining_budget = st.slider("Remaining Budget:", 0, BUDGET, BUDGET)
             
-            # Player selection columns
+            # FILTER PLAYERS BY PRICE
+            filtered_players = [p for p in PLAYERS if int(p['price'][1:]) <= max_price]
+            
             col1, col2, col3 = st.columns(3)
-            
             selected_gk = []
             selected_def_fwd = []
             
             with col1:
-                st.markdown("### 🧤 **GK (Select 1)**")
-                for player in [p for p in PLAYERS if p["position"] == "GK"]:
-                    if st.checkbox(f"{player['name']} {player['price']}", key=f"gk_{player['name']}"):
-                        selected_gk.append(f"{player['name']} {player['price']}")
+                st.write(f"**🧤 GK (≤₹{max_price})**")
+                for p in [x for x in filtered_players if x["position"] == "GK"]:
+                    if st.checkbox(f"{p['name']} {p['price']}", key=f"gk_{p['name']}"):
+                        selected_gk.append(f"{p['name']} {p['price']}")
             
             with col2:
-                st.markdown("### 🛡️ **DEFENDERS**")
-                for player in [p for p in PLAYERS if p["position"] == "DEF"]:
-                    if st.checkbox(f"{player['name']} {player['price']}", key=f"def_{player['name']}"):
-                        selected_def_fwd.append(f"{player['name']} {player['price']}")
+                st.write(f"**🛡️ DEF (≤₹{max_price})**")
+                for p in [x for x in filtered_players if x["position"] == "DEF"]:
+                    if st.checkbox(f"{p['name']} {p['price']}", key=f"def_{p['name']}"):
+                        selected_def_fwd.append(f"{p['name']} {p['price']}")
             
             with col3:
-                st.markdown("### ⚽ **FORWARDS**")
-                for player in [p for p in PLAYERS if p["position"] == "FWD"]:
-                    if st.checkbox(f"{player['name']} {player['price']}", key=f"fwd_{player['name']}"):
-                        selected_def_fwd.append(f"{player['name']} {player['price']}")
+                st.write(f"**⚽ FWD (≤₹{max_price})**")
+                for p in [x for x in filtered_players if x["position"] == "FWD"]:
+                    if st.checkbox(f"{p['name']} {p['price']}", key=f"fwd_{p['name']}"):
+                        selected_def_fwd.append(f"{p['name']} {p['price']}")
             
-            # Calculate total
+            # REAL-TIME BUDGET CHECK
             all_selected = selected_gk + selected_def_fwd
-            total_price = sum(int(p.split("₹")[1]) for p in all_selected if "₹" in p) if all_selected else 0
-            def_fwd_total = len(selected_def_fwd)
+            total_price = sum(int(p.split("₹")[1]) for p in all_selected if "₹" in p)
+            budget_left = BUDGET - total_price
             
-            # Budget display
-            col4, col5, col6 = st.columns(3)
-            col5.metric("💰 Budget Used", f"₹{total_price}", f"₹{BUDGET - total_price} left")
+            col4, col5 = st.columns(2)
+            col5.metric("💰 Budget Used", f"₹{total_price}", f"₹{budget_left}")
             
-            # Validation
-            is_valid = (len(selected_gk) == 1 and def_fwd_total == 5 and 
-                       len(all_selected) == 6 and total_price <= BUDGET)
+            # GREEN/RED BUDGET STATUS
+            budget_color = "normal" if budget_left >= 0 else "inverse"
+            st.markdown(f"**Budget Left: ₹{budget_left}**")
             
-            if st.button("💾 **SAVE MY TEAM**", type="primary", disabled=not is_valid):
-                teams_worksheet = get_sheet()
-                players_str = ", ".join(all_selected)
-                teams_worksheet.append_row([
-                    team_name, owner_name, players_str, 
-                    "", f"{datetime.now().strftime('%Y-%m-%d %H:%M')}", "0", ""
-                ])
-                st.success(f"✅ **{team_name}** saved successfully!")
-                st.rerun()
-            elif total_price > BUDGET:
-                st.error(f"❌ Budget exceeded! ₹{total_price} > ₹{BUDGET}")
+            # PERFECT VALIDATION
+            is_valid = (len(selected_gk) == 1 and 
+                       len(selected_def_fwd) == 5 and 
+                       total_price <= BUDGET)
+            
+            if total_price > BUDGET:
+                st.error(f"❌ **OVER BUDGET!** ₹{total_price} > ₹{BUDGET}")
             elif len(selected_gk) != 1:
-                st.error("❌ Select exactly **1 GK**")
-            elif def_fwd_total != 5:
-                st.warning(f"❌ Select exactly **5 DEF/FWD** (currently: {def_fwd_total})")
-                # ... your player selection code here ...
-        
-        if st.button("💾 **SAVE TEAM**", type="primary") and team_name and owner_name:
-            teams_worksheet = get_sheet()
-            teams_worksheet.append_row([
-                team_name, owner_name, str(all_selected), 
-                "", f"{datetime.now()}", ""  # Captain, Time, Points
-            ])
-            st.success(f"✅ **{team_name}** saved!")
-            st.rerun()
+                st.error("❌ **Select exactly 1 GK**")
+            elif len(selected_def_fwd) != 5:
+                st.warning(f"❌ **Select exactly 5 DEF/FWD** (have {len(selected_def_fwd)})")
+            else:
+                st.success("✅ **VALID TEAM! Ready to save!**")
+            
+            if st.button("💾 **SAVE TEAM**", type="primary", disabled=not is_valid):
+                worksheet = get_sheet()
+                players_str = ", ".join(all_selected)
+                worksheet.append_row([team_name, owner_name, players_str, "", 
+                                    datetime.now().strftime("%Y-%m-%d %H:%M"), 0, ""])
+                st.success(f"✅ **{team_name} SAVED!** Budget: ₹{total_price}")
+                st.rerun()
+
 
 # TAB 3: MY TEAM & SCORE (Logged in only)
 with tab3:
