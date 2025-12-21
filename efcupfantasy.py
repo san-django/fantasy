@@ -74,45 +74,77 @@ BUDGET = 60
 # TABS
 tab1, tab2, tab3, tab4 = st.tabs(["🔐 Login", "📝 Build Team", "👑 My Team", "⚽ Admin Scores"])
 
-# TAB 1: FIXED LOGIN - Shows team info immediately
+# TAB 1: COMPLETE FIXED LOGIN (No NameError!)
 with tab1:
-    st.markdown("### 🔐 **LOGIN WITH TEAM NAME**")
+    st.markdown("### 🔐 **SELECT YOUR REGISTERED TEAM**")
     
-    if st.session_state.logged_in_team:
-    # SHOW ONLY LOGGED IN TEAM'S DETAILS
-        st.success(f"✅ **Logged in: {st.session_state.logged_in_team}**")
-    
-    # Find EXACTLY this user's team
+    # Get teams data ONCE at top
+    try:
         teams_worksheet = get_sheet()
-        teams_data = teams_worksheet.get_all_records()
+        all_teams_data = teams_worksheet.get_all_records()
+        registered_teams = [team.get('Team', '').strip() for team in all_teams_data if team.get('Team')]
+    except:
+        registered_teams = []
+        all_teams_data = []
     
-        user_team = next((team for team in teams_data 
-                     if team.get('Team', '').strip() == st.session_state.logged_in_team), None)
-    
-    if user_team:
-        col1, col2 = st.columns(2)
+    if st.session_state.get('logged_in_team'):
+        # SHOW LOGGED IN TEAM (user_team defined HERE)
+        current_team = st.session_state.logged_in_team
+        st.success(f"✅ **Logged in: {current_team}**")
         
-        with col1:
-            st.markdown(f"**👤 Owner:** {user_team.get('Owner', 'N/A')}")
-            st.markdown(f"**⏰ Created:** {user_team.get('Time', 'N/A')}")
-            st.markdown(f"**🏆 Points:** {user_team.get('Points', '0')}")
+        # Find team data SAFELY
+        user_team = None
+        for team in all_teams_data:
+            if team.get('Team', '').strip() == current_team:
+                user_team = team
+                break
         
-        with col2:
-            st.markdown("**📋 YOUR TEAM PLAYERS ONLY:**")
-            players_str = user_team.get('Players', '')
-            if players_str:
-                players = [p.strip() for p in players_str.split(',')]
-                for player in players:
-                    st.write(f"• **{player}**")
-            else:
-                st.write("No players assigned yet")
-        
-        # Logout button
-        if st.button("🚪 **LOGOUT**", type="secondary"):
-            st.session_state.logged_in_team = None
-            st.rerun()
+        if user_team:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**👤 Owner:** {user_team.get('Owner', 'N/A')}")
+                st.markdown(f"**⏰ Created:** {user_team.get('Time', 'N/A')}")
+                st.markdown(f"**🏆 Points:** {user_team.get('Points', '0')}")
+            
+            with col2:
+                st.markdown("**📋 YOUR PLAYERS:**")
+                players_str = user_team.get('Players', '')
+                if players_str:
+                    players = [p.strip() for p in players_str.split(',')]
+                    for player in players:
+                        st.write(f"• **{player}**")
+                else:
+                    st.write("No players yet")
+            
+            if st.button("🚪 **LOGOUT**", type="secondary"):
+                st.session_state.logged_in_team = None
+                st.rerun()
+        else:
+            st.error("❌ Team data missing!")
+            
     else:
-        st.error("❌ Your team data not found!")
+        # LOGIN FORM - No user_team here
+        if registered_teams:
+            selected_team = st.selectbox(
+                "Choose your team:",
+                options=registered_teams,
+                index=None,
+                placeholder="Select team..."
+            )
+            
+            if selected_team and st.button("✅ **LOGIN**", type="primary"):
+                st.session_state.logged_in_team = selected_team
+                st.success(f"✅ **Welcome {selected_team}!**")
+                st.rerun()
+                
+            # Preview selected team
+            if selected_team:
+                preview_team = next((t for t in all_teams_data if t.get('Team', '') == selected_team), None)
+                if preview_team:
+                    st.info(f"👤 Owner: {preview_team.get('Owner', 'N/A')} | 📊 {len(preview_team.get('Players', '').split(','))} players")
+        else:
+            st.info("**No teams yet! Create one in Build Team tab.**")
+
 
 # TAB 2: BUILD TEAM (Only if not logged in or for new teams)
 with tab2:
