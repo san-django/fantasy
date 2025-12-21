@@ -74,38 +74,70 @@ BUDGET = 60
 # TABS
 tab1, tab2, tab3, tab4 = st.tabs(["🔐 Login", "📝 Build Team", "👑 My Team", "⚽ Admin Scores"])
 
-# TAB 1: LOGIN
+# TAB 1: FIXED LOGIN - Shows team info immediately
 with tab1:
-    st.markdown("### 🔐 **LOGIN WITH YOUR TEAM NAME**")
+    st.markdown("### 🔐 **LOGIN WITH TEAM NAME**")
     
     if st.session_state.logged_in_team:
-        st.success(f"✅ Logged in as: **{st.session_state.logged_in_team}**")
-        if st.button("🚪 Logout"):
-            st.session_state.logged_in_team = None
-            st.rerun()
+        # SHOW LOGGED IN USER'S TEAM INFO
+        st.success(f"✅ **Logged in: {st.session_state.logged_in_team}**")
+        
+        teams_worksheet = get_sheet()
+        teams_data = teams_worksheet.get_all_records()
+        
+        # Find user's team
+        user_team = None
+        for team in teams_data:
+            if team.get('Team', '').strip() == st.session_state.logged_in_team:
+                user_team = team
+                break
+        
+        if user_team:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**👤 Owner:** " + user_team.get('Owner', 'N/A'))
+                st.markdown("**⏰ Created:** " + user_team.get('Time', 'N/A'))
+                st.markdown("**📊 Points:** " + user_team.get('Points', '0'))
+            
+            with col2:
+                st.markdown("**📋 Players:**")
+                players = user_team.get('Players', '').split(', ')
+                for p in players[:3]:  # Show first 3
+                    st.write(f"• {p.strip()}")
+                if len(players) > 3:
+                    st.write(f"... +{len(players)-3} more")
+            
+            col_logout, _ = st.columns(2)
+            if col_logout.button("🚪 **LOGOUT**", type="secondary"):
+                st.session_state.logged_in_team = None
+                st.session_state.teams_data = []
+                st.rerun()
+        else:
+            st.warning("❌ Team data not found!")
+            
     else:
-        col1, col2 = st.columns([2,1])
+        # LOGIN FORM
+        col1, col2 = st.columns([3,1])
         with col1:
-            team_login = st.text_input("Enter your Team Name:", placeholder="Thunder Strikers")
+            team_login = st.text_input("🔍 **Enter Team Name**", placeholder="Thunder Strikers")
         with col2:
             st.markdown("")
-            if st.button("✅ **LOGIN**", type="primary"):
-                if team_login:
-                    # Check if team exists
-                    teams_worksheet = get_sheet()
-                    teams_data = teams_worksheet.get_all_records()
-                    st.session_state.teams_data = teams_data
-                    
-                    for team in teams_data:
-                        if team.get('Team', '').strip() == team_login.strip():
-                            st.session_state.logged_in_team = team_login.strip()
-                            st.success(f"✅ Welcome back **{team_login}**!")
-                            st.rerun()
-                            break
-                    else:
-                        st.warning("❌ Team not found! Create it in Build Team tab first.")
-                else:
-                    st.error("Enter team name!")
+            if st.button("✅ **LOGIN**", type="primary", disabled=not team_login):
+                teams_worksheet = get_sheet()
+                teams_data = teams_worksheet.get_all_records()
+                st.session_state.teams_data = teams_data
+                
+                found = False
+                for team in teams_data:
+                    if team.get('Team', '').strip().lower() == team_login.strip().lower():
+                        st.session_state.logged_in_team = team_login.strip()
+                        st.success(f"✅ **Welcome back {team_login}!**")
+                        st.rerun()
+                        found = True
+                        break
+                
+                if not found:
+                    st.error("❌ **Team not found!** Create it first in Build Team tab.")
 
 # TAB 2: BUILD TEAM (Only if not logged in or for new teams)
 with tab2:
