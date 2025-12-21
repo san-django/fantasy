@@ -13,8 +13,28 @@ def get_sheet():
         scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     )
     client = gspread.authorize(creds)
-    sheet = client.open("efcupfantasy")
-    return sheet.worksheet("Teams")
+    
+    try:
+        sheet = client.open("efcupfantasy")
+        try:
+            worksheet = sheet.worksheet("Teams")
+        except gspread.exceptions.WorksheetNotFound:
+            # AUTO-CREATE Teams tab if missing
+            worksheet = sheet.add_worksheet("Teams", 1000, 7)
+            worksheet.append_row([
+                "Team", "Owner", "Players", "Captain", "Time", "Points", "Owner_Email"
+            ])
+            st.success("✅ Created 'Teams' worksheet automatically!")
+        return worksheet
+    except gspread.exceptions.SpreadsheetNotFound:
+        # CREATE entire spreadsheet if missing
+        sheet = client.create("efcupfantasy")
+        worksheet = sheet.add_worksheet("Teams", 1000, 7)
+        worksheet.append_row([
+            "Team", "Owner", "Players", "Captain", "Time", "Points", "Owner_Email"
+        ])
+        st.success("✅ Created 'efcupfantasy' spreadsheet + Teams tab!")
+        return worksheet
 
 @st.cache_resource
 def get_scores_sheet():
@@ -23,15 +43,18 @@ def get_scores_sheet():
         scopes=["https://www.googleapis.com/auth/spreadsheets"]
     )
     client = gspread.authorize(creds)
+    
     try:
         sheet = client.open("efcupfantasy")
-        return sheet.worksheet("Scores")
-    except:
-        sheet = client.open("efcupfantasy")
-        worksheet = sheet.add_worksheet("Scores", 1000, 3)
-        worksheet.append_row(["Player Name", "Points", "Notes"])
+        try:
+            worksheet = sheet.worksheet("Scores")
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = sheet.add_worksheet("Scores", 1000, 3)
+            worksheet.append_row(["Player Name", "Points", "Notes"])
+            st.success("✅ Created 'Scores' worksheet!")
         return worksheet
-
+    except:
+        return None
 # SIMPLE TEAM LOGIN SYSTEM
 def hash_team_name(team_name):
     return hashlib.md5(team_name.encode()).hexdigest()
