@@ -58,7 +58,7 @@ def get_sheet():
 st.title("🏆 EF CUP FANTASY LEAGUE")
 st.markdown("**1 GK + 5 DEF/FWD**")
 
-BUDGET = 100
+BUDGET = 60
 team_name = st.text_input("🏷️ **Team Name**")
 owner_name = st.text_input("👤 **Your Name**")
 
