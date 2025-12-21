@@ -68,45 +68,6 @@ if 'logged_in_team' not in st.session_state:
 if 'teams_data' not in st.session_state:
     st.session_state.teams_data = []
 
-# COMPLETE 36 PLAYERS LIST
-PLAYERS = [
-    {"id": 1, "name": "ROJIT SHRESTHA", "price": 13, "position": "GK", "realTeam": "JOSHI JAGUARS",},
-    {"id": 2, "name": "SUJAN BK", "price": 15, "position": "GK", "realTeam": "SOTI SOLDIERS"},
-    {"id": 3, "name": "PRASHANNA PAUDEL", "price": 15, "position": "GK", "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 4, "name": "TANISHK THAPA", "price": 11, "position": "GK", "realTeam": "ZENITH ZEBRAS"},
-    {"id": 5, "name": "AAYUSH ROKA", "price": 14, "position": "GK", "realTeam": "BENZE BULLS"},
-    {"id": 6, "name": "SANGAM SHRESTHA", "price": 10, "position": "GK", "realTeam": "GODAR GOATS"},
-    {"id": 7, "name": "SABIN DAHAL", "price": 5, "position": "FWD", "realTeam": "BENZE BULLS"},
-    {"id": 8, "name": "SACHIN SEN", "price": 17, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
-    {"id": 9, "name": "SAKAR SUBEDI", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
-    {"id": 10, "name": "SANDIL KATUWAL", "price": 4, "position": "FWD", "realTeam": "GODAR GOATS"},
-    {"id": 11, "name": "SANJAYA ADHIKARI", "price": 4, "position": "FWD", "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 12, "name": "SANKALPA SHARMA", "price": 11, "position": "FWD", "realTeam": "JOSHI JAGUARS"},
-    {"id": 13, "name": "SHRIJAN BHUSAL", "price": 15, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
-    {"id": 14, "name": "SHUBHAM SINGH", "price": 12, "position": "FWD", "realTeam": "GODAR GOATS"},
-    {"id": 15, "name": "SHUSHANT ADHIKARI", "price": 11, "position": "FWD", "realTeam": "JOSHI JAGUARS"},
-    {"id": 16, "name": "SHYAM MAHATO", "price": 8, "position": "FWD", "realTeam": "GODAR GOATS"},
-    {"id": 17, "name": "SUDIP BARAL", "price": 18, "position": "FWD", "realTeam": "BENZE BULLS"},
-    {"id": 18, "name": "SUJIT GURUNG", "price": 10, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
-    {"id": 19, "name": "SUMAN CHHETRI", "price": 15, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
-    {"id": 20, "name": "UNIQUE REGMI", "price": 6, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
-    {"id": 21, "name": "SUMAN SHARMA", "price": 5, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
-    {"id": 22, "name": "UDHAY THAKUR", "price": 9, "position": "FWD", "realTeam": "GODAR GOATS"},
-    {"id": 23, "name": "SAJAN ROKAYA", "price": 4, "position": "DEF", "realTeam": "ZENITH ZEBRAS"},
-    {"id": 24, "name": "SAMEER ACHARYA", "price": 18, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 25, "name": "SAMIR GODAR", "price": 18, "position": "DEF", "realTeam": "GODAR GOATS"},
-    {"id": 26, "name": "SANTOSH JOSHI", "price": 18, "position": "DEF", "realTeam": "JOSHI JAGUARS"},
-    {"id": 27, "name": "SUJAL PARAJULI", "price": 17, "position": "DEF", "realTeam": "JOSHI JAGUARS"},
-    {"id": 28, "name": "SUJAL SOTI", "price": 18, "position": "DEF", "realTeam": "SOTI SOLDIERS"},
-    {"id": 29, "name": "SUJAN BHAATTA", "price": 10, "position": "DEF", "realTeam": "SOTI SOLDIERS"},
-    {"id": 30, "name": "SUSHAN PANDEY", "price": 7, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 31, "name": "SWORNIM TIMILSINA", "price": 13, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 32, "name": "VIVEK GAUTAM", "price": 12, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
-    {"id": 33, "name": "ZENITH SARU", "price": 18, "position": "DEF", "realTeam": "ZENITH ZEBRAS"},
-    {"id": 34, "name": "ANUJ THAPA", "price": 15, "position": "DEF", "realTeam": "BENZE BULLS"},
-    {"id": 35, "name": "ANUPAM BISTA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
-    {"id": 36, "name": "TASHI SHERPA", "price": 10, "position": "FWD", "realTeam": "BENZE BULLS"},
-]
 
 BUDGET = 60
 
@@ -149,15 +110,110 @@ with tab1:
 # TAB 2: BUILD TEAM (Only if not logged in or for new teams)
 with tab2:
     st.markdown("### 🏗️ **BUILD YOUR TEAM**")
+    
     if st.session_state.logged_in_team:
-        st.info("👆 Login first to manage your team!")
+        st.info("✅ Already logged in! View your team in 'My Team' tab.")
     else:
-        team_name = st.text_input("🏷️ **Team Name**")
-        owner_name = st.text_input("👤 **Owner Name**")
+        team_name = st.text_input("🏷️ **Team Name**", key="team_name")
+        owner_name = st.text_input("👤 **Owner Name**", key="owner_name")
         
-        # Player selection (your existing code)
-        st.markdown("**Select 1 GK + 5 DEF/FWD**")
-        # ... your player selection code here ...
+        if team_name and owner_name:
+            st.markdown("---")
+            st.markdown("**🎯 Select 1 GK + 5 DEF/FWD (Budget: ₹100)**")
+            
+            # COMPLETE 36 PLAYERS LIST
+            PLAYERS = [
+    {"id": 1, "name": "ROJIT SHRESTHA", "price": 13, "position": "GK", "realTeam": "JOSHI JAGUARS",},
+    {"id": 2, "name": "SUJAN BK", "price": 15, "position": "GK", "realTeam": "SOTI SOLDIERS"},
+    {"id": 3, "name": "PRASHANNA PAUDEL", "price": 15, "position": "GK", "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 4, "name": "TANISHK THAPA", "price": 11, "position": "GK", "realTeam": "ZENITH ZEBRAS"},
+    {"id": 5, "name": "AAYUSH ROKA", "price": 14, "position": "GK", "realTeam": "BENZE BULLS"},
+    {"id": 6, "name": "SANGAM SHRESTHA", "price": 10, "position": "GK", "realTeam": "GODAR GOATS"},
+    {"id": 7, "name": "SABIN DAHAL", "price": 5, "position": "FWD", "realTeam": "BENZE BULLS"},
+    {"id": 8, "name": "SACHIN SEN", "price": 17, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
+    {"id": 9, "name": "SAKAR SUBEDI", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
+    {"id": 10, "name": "SANDIL KATUWAL", "price": 4, "position": "FWD", "realTeam": "GODAR GOATS"},
+    {"id": 11, "name": "SANJAYA ADHIKARI", "price": 4, "position": "FWD", "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 12, "name": "SANKALPA SHARMA", "price": 11, "position": "FWD", "realTeam": "JOSHI JAGUARS"},
+    {"id": 13, "name": "SHRIJAN BHUSAL", "price": 15, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
+    {"id": 14, "name": "SHUBHAM SINGH", "price": 12, "position": "FWD", "realTeam": "GODAR GOATS"},
+    {"id": 15, "name": "SHUSHANT ADHIKARI", "price": 11, "position": "FWD", "realTeam": "JOSHI JAGUARS"},
+    {"id": 16, "name": "SHYAM MAHATO", "price": 8, "position": "FWD", "realTeam": "GODAR GOATS"},
+    {"id": 17, "name": "SUDIP BARAL", "price": 18, "position": "FWD", "realTeam": "BENZE BULLS"},
+    {"id": 18, "name": "SUJIT GURUNG", "price": 10, "position": "FWD", "realTeam": "ZENITH ZEBRAS"},
+    {"id": 19, "name": "SUMAN CHHETRI", "price": 15, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
+    {"id": 20, "name": "UNIQUE REGMI", "price": 6, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
+    {"id": 21, "name": "SUMAN SHARMA", "price": 5, "position": "FWD", "realTeam": "SOTI SOLDIERS"},
+    {"id": 22, "name": "UDHAY THAKUR", "price": 9, "position": "FWD", "realTeam": "GODAR GOATS"},
+    {"id": 23, "name": "SAJAN ROKAYA", "price": 4, "position": "DEF", "realTeam": "ZENITH ZEBRAS"},
+    {"id": 24, "name": "SAMEER ACHARYA", "price": 18, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 25, "name": "SAMIR GODAR", "price": 18, "position": "DEF", "realTeam": "GODAR GOATS"},
+    {"id": 26, "name": "SANTOSH JOSHI", "price": 18, "position": "DEF", "realTeam": "JOSHI JAGUARS"},
+    {"id": 27, "name": "SUJAL PARAJULI", "price": 17, "position": "DEF", "realTeam": "JOSHI JAGUARS"},
+    {"id": 28, "name": "SUJAL SOTI", "price": 18, "position": "DEF", "realTeam": "SOTI SOLDIERS"},
+    {"id": 29, "name": "SUJAN BHAATTA", "price": 10, "position": "DEF", "realTeam": "SOTI SOLDIERS"},
+    {"id": 30, "name": "SUSHAN PANDEY", "price": 7, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 31, "name": "SWORNIM TIMILSINA", "price": 13, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 32, "name": "VIVEK GAUTAM", "price": 12, "position": "DEF", "realTeam": "ACHARYA ATTACKERS"},
+    {"id": 33, "name": "ZENITH SARU", "price": 18, "position": "DEF", "realTeam": "ZENITH ZEBRAS"},
+    {"id": 34, "name": "ANUJ THAPA", "price": 15, "position": "DEF", "realTeam": "BENZE BULLS"},
+    {"id": 35, "name": "ANUPAM BISTA", "price": 7, "position": "FWD", "realTeam": "BENZE BULLS"},
+    {"id": 36, "name": "TASHI SHERPA", "price": 10, "position": "FWD", "realTeam": "BENZE BULLS"},
+            ]
+            
+            # Player selection columns
+            col1, col2, col3 = st.columns(3)
+            
+            selected_gk = []
+            selected_def_fwd = []
+            
+            with col1:
+                st.markdown("### 🧤 **GK (Select 1)**")
+                for player in [p for p in PLAYERS if p["position"] == "GK"]:
+                    if st.checkbox(f"{player['name']} {player['price']}", key=f"gk_{player['name']}"):
+                        selected_gk.append(f"{player['name']} {player['price']}")
+            
+            with col2:
+                st.markdown("### 🛡️ **DEFENDERS**")
+                for player in [p for p in PLAYERS if p["position"] == "DEF"]:
+                    if st.checkbox(f"{player['name']} {player['price']}", key=f"def_{player['name']}"):
+                        selected_def_fwd.append(f"{player['name']} {player['price']}")
+            
+            with col3:
+                st.markdown("### ⚽ **FORWARDS**")
+                for player in [p for p in PLAYERS if p["position"] == "FWD"]:
+                    if st.checkbox(f"{player['name']} {player['price']}", key=f"fwd_{player['name']}"):
+                        selected_def_fwd.append(f"{player['name']} {player['price']}")
+            
+            # Calculate total
+            all_selected = selected_gk + selected_def_fwd
+            total_price = sum(int(p.split("₹")[1]) for p in all_selected if "₹" in p) if all_selected else 0
+            def_fwd_total = len(selected_def_fwd)
+            
+            # Budget display
+            col4, col5, col6 = st.columns(3)
+            col5.metric("💰 Budget Used", f"₹{total_price}", f"₹{BUDGET - total_price} left")
+            
+            # Validation
+            is_valid = (len(selected_gk) == 1 and def_fwd_total == 5 and 
+                       len(all_selected) == 6 and total_price <= BUDGET)
+            
+            if st.button("💾 **SAVE MY TEAM**", type="primary", disabled=not is_valid):
+                teams_worksheet = get_sheet()
+                players_str = ", ".join(all_selected)
+                teams_worksheet.append_row([
+                    team_name, owner_name, players_str, 
+                    "", f"{datetime.now().strftime('%Y-%m-%d %H:%M')}", "0", ""
+                ])
+                st.success(f"✅ **{team_name}** saved successfully!")
+                st.rerun()
+            elif total_price > BUDGET:
+                st.error(f"❌ Budget exceeded! ₹{total_price} > ₹{BUDGET}")
+            elif len(selected_gk) != 1:
+                st.error("❌ Select exactly **1 GK**")
+            elif def_fwd_total != 5:
+                st.warning(f"❌ Select exactly **5 DEF/FWD** (currently: {def_fwd_total})")
+                # ... your player selection code here ...
         
         if st.button("💾 **SAVE TEAM**", type="primary") and team_name and owner_name:
             teams_worksheet = get_sheet()
