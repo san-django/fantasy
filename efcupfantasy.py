@@ -1,8 +1,49 @@
 import streamlit as st
+import gspread
+from google.oauth2 import service_account
 import pandas as pd
 from datetime import datetime
-from google.oauth2 import service_account
-import gspread
+import hashlib
+
+# Google Sheets setup
+@st.cache_resource
+def get_sheet():
+    creds = service_account.Credentials.from_service_account_info(
+        st.secrets["connections"]["google_sheets"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    )
+    client = gspread.authorize(creds)
+    sheet = client.open("efcupfantasy")
+    return sheet.worksheet("Teams")
+
+@st.cache_resource
+def get_scores_sheet():
+    creds = service_account.Credentials.from_service_account_info(
+        st.secrets["connections"]["google_sheets"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets"]
+    )
+    client = gspread.authorize(creds)
+    try:
+        sheet = client.open("efcupfantasy")
+        return sheet.worksheet("Scores")
+    except:
+        sheet = client.open("efcupfantasy")
+        worksheet = sheet.add_worksheet("Scores", 1000, 3)
+        worksheet.append_row(["Player Name", "Points", "Notes"])
+        return worksheet
+
+# SIMPLE TEAM LOGIN SYSTEM
+def hash_team_name(team_name):
+    return hashlib.md5(team_name.encode()).hexdigest()
+
+# Main app
+st.set_page_config(page_title="EF Cup Fantasy", layout="wide")
+
+# Initialize session state
+if 'logged_in_team' not in st.session_state:
+    st.session_state.logged_in_team = None
+if 'teams_data' not in st.session_state:
+    st.session_state.teams_data = []
 
 # COMPLETE 36 PLAYERS LIST
 PLAYERS = [
@@ -44,180 +85,146 @@ PLAYERS = [
     {"id": 36, "name": "TASHI SHERPA", "price": 10, "position": "FWD", "realTeam": "BENZE BULLS"},
 ]
 
-# SHEET CONNECTION
-@st.cache_resource
-def get_sheet():
-    creds = service_account.Credentials.from_service_account_info(
-        st.secrets["connections"]["google_sheets"],
-        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    )
-    client = gspread.authorize(creds)
-    sheet = client.open("efcupfantasy")
-    return sheet.sheet1
-
-st.title("🏆 EF CUP FANTASY LEAGUE")
-st.markdown("**1 GK + 5 DEF/FWD**")
-
 BUDGET = 60
-team_name = st.text_input("🏷️ **Team Name**")
-owner_name = st.text_input("👤 **Your Name**")
 
-# Session state
-if 'selected_gk' not in st.session_state: st.session_state.selected_gk = []
-if 'selected_fwd' not in st.session_state: st.session_state.selected_fwd = []
-if 'selected_def' not in st.session_state: st.session_state.selected_def = []
-if 'show_captain_select' not in st.session_state: st.session_state.show_captain_select = False
-if 'team_players' not in st.session_state: st.session_state.team_players = []
+# TABS
+tab1, tab2, tab3, tab4 = st.tabs(["🔐 Login", "📝 Build Team", "👑 My Team", "⚽ Admin Scores"])
 
-# Check captain status
-all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
-has_captain_selected = any(' ⭐' in player for player in all_selected)
-
-# POSITION COLUMNS
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("### 🧤 **GK (REQUIRED)**")
-    gk_options = [f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})" 
-                  for p in PLAYERS if p['position'] == 'GK']
-    new_gk = st.multiselect("GK", gk_options, default=st.session_state.selected_gk, max_selections=1)
-    st.session_state.selected_gk = new_gk
-
-with col2:
-    st.markdown("### ⚽ **FWD**")
-    fwd_options = []
-    def_count = len(st.session_state.selected_def)
-    max_fwd = min(5 - def_count, 4)
+# TAB 1: LOGIN
+with tab1:
+    st.markdown("### 🔐 **LOGIN WITH YOUR TEAM NAME**")
     
-    for p in PLAYERS:
-        if p['position'] == 'FWD' and not (p.get('iscaptain', False) and has_captain_selected):
-            fwd_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
-    
-    st.caption(f"Max: {max_fwd}")
-    new_fwd = st.multiselect("FWD", fwd_options, default=st.session_state.selected_fwd, max_selections=max_fwd)
-    st.session_state.selected_fwd = new_fwd
-
-with col3:
-    st.markdown("### 🛡️ **DEF**")
-    def_options = []
-    fwd_count = len(st.session_state.selected_fwd)
-    max_def = min(5 - fwd_count, 3)
-    
-    for p in PLAYERS:
-        if p['position'] == 'DEF' and not (p.get('iscaptain', False) and has_captain_selected):
-            def_options.append(f"{p['name']} (₹{p['price']}{' ⭐' if p.get('iscaptain', False) else ''})")
-    
-    st.caption(f"Max: {max_def}")
-    new_def = st.multiselect("DEF", def_options, default=st.session_state.selected_def, max_selections=max_def)
-    st.session_state.selected_def = new_def
-
-# Update calculations
-all_selected = st.session_state.selected_gk + st.session_state.selected_fwd + st.session_state.selected_def
-captain_count = len([p for p in all_selected if ' ⭐' in p])
-def_fwd_total = len(st.session_state.selected_fwd) + len(st.session_state.selected_def)
-total_price = sum(int(p.split("₹")[1].split('⭐')[0].strip(")")) for p in all_selected) if all_selected else 0
-
-# METRICS
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Total", len(all_selected), "6")
-col2.metric("GK", len(st.session_state.selected_gk), "1")
-col3.metric("DEF+FWD", def_fwd_total, "5")
-col4.metric("Captain", captain_count, "0-1")
-col5.metric("Budget", f"₹{total_price}", "₹60")
-
-is_valid = (len(st.session_state.selected_gk) == 1 and def_fwd_total == 5 and len(all_selected) == 6 and total_price <= BUDGET)
-
-if is_valid:
-    st.success("✅ **READY TO SAVE!**")
-else:
-    st.warning("⚠️ **Fix selection**")
-
-# TEAM LIST
-if all_selected:
-    st.markdown("### 📋 **Your Team:**")
-    for player in all_selected:
-        captain_emoji = " ⭐ **(C)**" if ' ⭐' in player else ""
-        st.write(f"• {player.replace(' ⭐', '')}{captain_emoji}")
-
-# SAVE BUTTON - Opens Captain Selection
-if st.button("💾 **SAVE TEAM + SET CAPTAIN**", type="primary", use_container_width=True):
-    def_fwd_total = len(st.session_state.selected_fwd) + len(st.session_state.selected_def)
-    
-    if not team_name.strip() or not owner_name.strip():
-        st.error("❌ Team Name & Owner required!")
-    elif len(st.session_state.selected_gk) != 1:
-        st.error("❌ 1 GK REQUIRED!")
-    elif def_fwd_total != 5:
-        st.error(f"❌ Need 5 DEF+FWD! (Have {def_fwd_total})")
-    elif total_price > BUDGET:
-        st.error(f"❌ Over budget: ₹{total_price}")
-    else:
-        # Store team data for captain selection
-        st.session_state.team_players = []
-        for sel in all_selected:
-            name = sel.split(" (")[0].replace(' ⭐', '')
-            player = next(p for p in PLAYERS if p["name"] == name)
-            st.session_state.team_players.append({
-                'name': player['name'],
-                'position': player['position'],
-                'realTeam': player['realTeam']
-            })
-        st.session_state.team_name = team_name.strip()
-        st.session_state.owner_name = owner_name.strip()
-        st.session_state.total_price = total_price
-        st.session_state.show_captain_select = True
-
-# CAPTAIN SELECTION MODAL - FIXED
-if st.session_state.get('show_captain_select', False):
-    st.markdown("---")
-    st.markdown("### 👑 **SELECT CAPTAIN**")
-    
-    team_players = st.session_state.team_players
-    captain_options = [p['name'] for p in team_players]
-    
-    selected_captain = st.selectbox("**Captain** (2x points):", captain_options, key="captain_select")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("✅ **SAVE TEAM + CAPTAIN**", type="primary"):
-            try:
-                worksheet = get_sheet()
-                
-                # Prepare data with CAPTAIN NAME (not star)
-                team_players_str = ", ".join([p['name'] for p in team_players])
-                positions_str = ", ".join([p['position'] for p in team_players])
-                real_teams_str = ", ".join([p['realTeam'] for p in team_players])
-                
-                # CAPTAIN NAME saved directly
-                captain_name = selected_captain
-                
-                worksheet.append_row([
-                    st.session_state.team_name,
-                    st.session_state.total_price,
-                    team_players_str,
-                    positions_str,
-                    real_teams_str,
-                    captain_name,  # CAPTAIN NAME SAVED HERE
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.owner_name
-                ])
-                
-                st.success(f"🎉 **TEAM SAVED! Captain: {captain_name}**")
-                st.balloons()
-                
-                # Reset everything
-                for key in ['selected_gk', 'selected_fwd', 'selected_def', 'show_captain_select', 
-                           'team_players', 'team_name', 'owner_name', 'total_price']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.rerun()
-                
-            except Exception as e:
-                st.error(f"❌ {str(e)}")
-    
-    with col2:
-        if st.button("❌ **Cancel**"):
-            for key in ['show_captain_select', 'team_players', 'team_name', 'owner_name', 'total_price']:
-                if key in st.session_state:
-                    del st.session_state[key]
+    if st.session_state.logged_in_team:
+        st.success(f"✅ Logged in as: **{st.session_state.logged_in_team}**")
+        if st.button("🚪 Logout"):
+            st.session_state.logged_in_team = None
             st.rerun()
+    else:
+        col1, col2 = st.columns([2,1])
+        with col1:
+            team_login = st.text_input("Enter your Team Name:", placeholder="Thunder Strikers")
+        with col2:
+            st.markdown("")
+            if st.button("✅ **LOGIN**", type="primary"):
+                if team_login:
+                    # Check if team exists
+                    teams_worksheet = get_sheet()
+                    teams_data = teams_worksheet.get_all_records()
+                    st.session_state.teams_data = teams_data
+                    
+                    for team in teams_data:
+                        if team.get('Team', '').strip() == team_login.strip():
+                            st.session_state.logged_in_team = team_login.strip()
+                            st.success(f"✅ Welcome back **{team_login}**!")
+                            st.rerun()
+                            break
+                    else:
+                        st.warning("❌ Team not found! Create it in Build Team tab first.")
+                else:
+                    st.error("Enter team name!")
+
+# TAB 2: BUILD TEAM (Only if not logged in or for new teams)
+with tab2:
+    st.markdown("### 🏗️ **BUILD YOUR TEAM**")
+    if st.session_state.logged_in_team:
+        st.info("👆 Login first to manage your team!")
+    else:
+        team_name = st.text_input("🏷️ **Team Name**")
+        owner_name = st.text_input("👤 **Owner Name**")
+        
+        # Player selection (your existing code)
+        st.markdown("**Select 1 GK + 5 DEF/FWD**")
+        # ... your player selection code here ...
+        
+        if st.button("💾 **SAVE TEAM**", type="primary") and team_name and owner_name:
+            teams_worksheet = get_sheet()
+            teams_worksheet.append_row([
+                team_name, owner_name, str(all_selected), 
+                "", f"{datetime.now()}", ""  # Captain, Time, Points
+            ])
+            st.success(f"✅ **{team_name}** saved!")
+            st.rerun()
+
+# TAB 3: MY TEAM & SCORE (Logged in only)
+with tab3:
+    st.markdown("### 👑 **YOUR TEAM & LIVE SCORE**")
+    
+    if st.session_state.logged_in_team:
+        teams_worksheet = get_sheet()
+        scores_worksheet = get_scores_sheet()
+        
+        # Get user's team data
+        user_team = None
+        for team in teams_worksheet.get_all_records():
+            if team.get('Team', '') == st.session_state.logged_in_team:
+                user_team = team
+                break
+        
+        if user_team:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**📋 YOUR PLAYERS**")
+                players = user_team.get('Players', '').split(', ')
+                for player in players:
+                    st.write(f"• {player.strip()}")
+                
+                captain = user_team.get('Captain', 'None')
+                st.markdown(f"**👑 Captain:** {captain}")
+            
+            with col2:
+                # LIVE SCORE CALCULATION
+                scores_data = scores_worksheet.get_all_records()
+                points_dict = {s['Player Name']: int(s['Points']) for s in scores_data}
+                
+                team_total = 0
+                players = user_team.get('Players', '').split(', ')
+                captain = user_team.get('Captain', '').strip()
+                
+                st.markdown("**⚽ LIVE POINTS**")
+                for player in players:
+                    player_name = player.strip()
+                    pts = points_dict.get(player_name, 0)
+                    multiplier = " **(2x)**" if player_name == captain else ""
+                    st.write(f"• {player_name}: **{pts}{multiplier}** pts")
+                    if player_name == captain:
+                        team_total += pts * 2
+                    else:
+                        team_total += pts
+                
+                st.markdown("---")
+                st.metric("🏆 **TOTAL POINTS**", f"{team_total}", delta=None)
+                
+                # Update sheet with live score
+                if st.button("🔄 Update My Score", type="secondary"):
+                    row_num = teams_worksheet.findall(st.session_state.logged_in_team)[0].row
+                    teams_worksheet.update_cell(row_num, 6, team_total)  # Points column
+                    st.success("✅ Score updated!")
+        else:
+            st.warning("No team found!")
+    else:
+        st.info("🔐 Login to view your team!")
+
+# TAB 4: ADMIN SCORES (Separate admin access)
+with tab4:
+    st.markdown("### ⚽ **ADMIN: ENTER MATCH SCORES**")
+    admin_code = st.text_input("Admin Code:", type="password")
+    
+    if admin_code == "efcup2025":  # Change this password
+        player_names = [p['name'] for p in PLAYERS]
+        selected_player = st.selectbox("Select Player:", player_names)
+        
+        col1, col2 = st.columns(2)
+        points = col1.number_input("Points:", min_value=-5, max_value=50, value=0)
+        notes = col2.text_input("Notes:")
+        
+        if st.button("➕ ADD SCORE", type="primary"):
+            scores_worksheet = get_scores_sheet()
+            scores_worksheet.append_row([selected_player, points, notes])
+            st.success(f"✅ {selected_player}: {points}pts ADDED!")
+            st.rerun()
+        
+        # View all scores
+        if st.button("📊 View All Scores"):
+            scores_data = scores_worksheet.get_all_records()
+            st.dataframe(pd.DataFrame(scores_data))
